@@ -3,35 +3,36 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.swp
-.secrets
+*.egg-info/
+*.log
+
+# Docker/Build
+docker-compose.override.yml
 .env
 .env.*
-!*.env.example
-
-# Docker
-*.log
-*.tmp
-docker-compose.override.yml
-cleanup-logs/
-models/2stems/*
-!models/2stems/.gitkeep
-
-# VSCode/Editor
-.vscode/
+!.env.example
+*.bak
+temp_chunks/
+models/
 .idea/
-*.sublime-workspace
-*.sublime-project
+.vscode/
 
-# System
+# OS
 .DS_Store
 Thumbs.db
-*.bak
-*~
 
-# -----------------------------------------------------------------------------
-# Ignore local persistent data/config for support services (host-mount option)
-# -----------------------------------------------------------------------------
-support/jellyfin/config/
-support/jellyfin/cache/
-support/grafana_data/
+# Test/Temp
+*.swp
+*~
+*.tmp
+*.orig
+*.old
+
+# Service-generated
+logs/
+output/
+input/
+queue/
+organized/
+metadata/
+stems/
