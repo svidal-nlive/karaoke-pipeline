@@ -1,63 +1,55 @@
 # version: "3.9"
 ---
 services:
-
-  watcher:
+  volume-init:
     build:
-      context: .
-      dockerfile: watcher/Dockerfile
-      args:
-        - PUID=${PUID}
-        - PGID=${PGID}
-    container_name: ${STACK_PREFIX}_watcher
-    user: "${PUID}:${PGID}"
-    restart: unless-stopped
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - LOG_LEVEL=${LOG_LEVEL}
+      context: ./volume-init
+      args: [PUID=${PUID}, PGID=${PGID}]
+    user: "0:0"
+    command: []
     volumes:
       - input:/input
       - queue:/queue
       - logs:/logs
-    networks:
-      - backend
+      - metadata:/metadata
+      - output:/output
+      - organized:/organized
+      - stems:/stems
+    restart: "no"
+
+  watcher:
+    build: ./watcher
+    args: [PUID=${PUID}, PGID=${PGID}]
+    user: "${PUID}:${PGID}"
+    restart: unless-stopped
+    environment: [PUID=${PUID}, PGID=${PGID}, TZ=${TZ}, LOG_LEVEL=${LOG_LEVEL}]
+    volumes:
+      - input:/input
+      - queue:/queue
+      - logs:/logs
+    networks: [backend]
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   metadata:
-    build:
-      context: .
-      dockerfile: metadata/Dockerfile
-      args:
-        - PUID=${PUID}
-        - PGID=${PGID}
-    container_name: ${STACK_PREFIX}_metadata
+    build: ./metadata
+    args: [PUID=${PUID}, PGID=${PGID}]
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+    environment: [PUID=${PUID}, PGID=${PGID}]
     volumes:
       - queue:/queue
       - metadata:/metadata
       - logs:/logs
-    networks:
-      - backend
+    networks: [backend]
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   splitter:
-    build:
-      context: .
-      dockerfile: splitter/Dockerfile
-      args:
-        - PUID=${PUID}
-        - PGID=${PGID}
-    container_name: ${STACK_PREFIX}_splitter
+    build: ./splitter
+    args: [PUID=${PUID}, PGID=${PGID}]
     user: "${PUID}:${PGID}"
     restart: unless-stopped
     environment:
@@ -74,85 +66,59 @@ services:
       - logs:/logs
       - ./temp_chunks:/tmp
       - ./models:/app/pretrained_models
-    networks:
-      - backend
+    networks: [backend]
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   packager:
-    build:
-      context: .
-      dockerfile: packager/Dockerfile
-      args:
-        - PUID=${PUID}
-        - PGID=${PGID}
-    container_name: ${STACK_PREFIX}_packager
+    build: ./packager
+    args: [PUID=${PUID}, PGID=${PGID}]
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+    environment: [PUID=${PUID}, PGID=${PGID}]
     volumes:
       - stems:/stems
       - metadata:/metadata
       - output:/output
       - logs:/logs
-    networks:
-      - backend
+    networks: [backend]
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   organizer:
-    build:
-      context: .
-      dockerfile: organizer/Dockerfile
-      args:
-        - PUID=${PUID}
-        - PGID=${PGID}
-    container_name: ${STACK_PREFIX}_organizer
+    build: ./organizer
+    args: [PUID=${PUID}, PGID=${PGID}]
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+    environment: [PUID=${PUID}, PGID=${PGID}]
     volumes:
       - output:/output
       - organized:/organized
       - metadata:/metadata
       - logs:/logs
-    networks:
-      - backend
+    networks: [backend]
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   status-api:
-    build:
-      context: .
-      dockerfile: status-api/Dockerfile
-      args:
-        - PUID=${PUID}
-        - PGID=${PGID}
-    container_name: ${STACK_PREFIX}_status
+    build: ./status-api
+    args: [PUID=${PUID}, PGID=${PGID}]
     user: "${PUID}:${PGID}"
     restart: unless-stopped
     ports:
       - "5001:5001"
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+    environment: [PUID=${PUID}, PGID=${PGID}]
     volumes:
-      - ./test-assets:/test-assets:rw
       - input:/input
       - queue:/queue
       - metadata:/metadata
       - output:/output
       - organized:/organized
       - logs:/logs
-    networks:
-      - backend
+    networks: [backend]
     depends_on:
       volume-init:
         condition: service_completed_successfully
@@ -175,4 +141,4 @@ volumes:
 
 networks:
   backend:
-    name: ${BACKEND_NETWORK}
+    external: true
