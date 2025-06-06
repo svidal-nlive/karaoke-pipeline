@@ -1,0 +1,5 @@
+Flask==2.2.5
+mutagen==1.47.0
+redis==6.1.0
+requests==2.32.3
+Werkzeug==2.2.3
