@@ -1,4 +1,4 @@
-name: CI
+name: CI Pipeline (All Services)
 
 on:
   push:
@@ -9,10 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        python-version: [3.9, 3.10, 3.11, 3.12]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -30,22 +29,37 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install dependencies
+    - name: Discover and Test All Services
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install -r requirements.txt
+        set -e
+        for dir in */ ; do
+          # Skip non-service folders
+          if [ ! -f "$dir/requirements.txt" ]; then continue; fi
 
-    # Optionally: Linting (uncomment if you want)
-    # - name: Lint with flake8
-    #   run: |
-    #     pip install flake8
-    #     flake8 .
+          echo "============================"
+          echo "Testing service: $dir"
+          echo "============================"
+          cd "$dir"
 
-    - name: Run tests
-      run: |
-        if [ -f pytest.ini ] || [ -f tests ] || [ -d tests ]; then
-          pip install pytest
-          pytest
-        else
-          echo "No tests directory, skipping tests."
-        fi
+          python -m pip install --upgrade pip
+
+          if grep -q "karaoke-shared" requirements.txt; then
+            echo "karaoke-shared dependency detected"
+          fi
+
+          python -m pip install -r requirements.txt
+
+          # Linting (optional, uncomment if desired)
+          # pip install flake8
+          # flake8 .
+
+          # Run tests if present
+          if [ -d tests ] || [ -f tests.py ] || [ -f pytest.ini ]; then
+            pip install pytest
+            pytest
+          else
+            echo "No tests found in $dir, skipping tests."
+          fi
+
+          cd ..
+        done
