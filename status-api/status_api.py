@@ -3,7 +3,7 @@ import logging
 import time
 import requests
 from flask import Flask, jsonify, request, Response
-from shared.pipeline_utils import (
+from karaoke_shared.pipeline_utils import (
     redis_client,
     get_files_by_status,
     set_file_status,

@@ -1,15 +1,16 @@
 #!/bin/sh
 set -e
 
-echo "Chowning all relevant mount points to ${PUID}:${PGID}..."
+echo "🔑 [volume-init] Setting ownership of shared volumes to ${PUID}:${PGID}"
 
-for path in /input /queue /logs /metadata /output /organized /stems /cookies /chromium_config /profile; do
+DIRS="/input /queue /logs /metadata /output /organized /stems /cookies /chromium_config /profile"
+for path in $DIRS; do
   if [ -d "$path" ]; then
-    echo " - Setting $path"
+    echo " - Chowning $path"
     chown -R "${PUID}:${PGID}" "$path"
   else
     echo " - Skipping $path (not present)"
   fi
 done
 
-echo "Volume init complete."
+echo "✅ [volume-init] Volume permission setup complete."

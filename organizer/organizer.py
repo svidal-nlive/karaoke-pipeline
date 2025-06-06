@@ -5,7 +5,7 @@ import time
 import json
 import logging
 from flask import Flask
-from shared.pipeline_utils import (
+from karaoke_shared.pipeline_utils import (
     set_file_status,
     get_files_by_status,
     set_file_error,

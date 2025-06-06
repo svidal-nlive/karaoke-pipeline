@@ -3,4 +3,5 @@ mutagen==1.47.0
 redis==6.1.0
 requests==2.32.3
 Werkzeug==2.2.3
+musicbrainzngs==0.7.1
 git+https://github.com/svidal-nlive/karaoke-shared.git@v1.0.0

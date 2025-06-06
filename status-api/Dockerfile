@@ -1,28 +1,28 @@
-# status-api/Dockerfile
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1
 
-ARG PUID=1001
-ARG PGID=1001
+FROM python:3.12-slim
 
-ENV PUID=${PUID}
-ENV PGID=${PGID}
-ENV PYTHONUNBUFFERED=1
+ARG PUID=1000
+ARG PGID=1000
 
-RUN groupadd -g ${PGID} appuser && useradd -u ${PUID} -g appuser -m appuser
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY status-api/requirements.txt /app/
+COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-COPY shared /app/shared
-ENV PYTHONPATH="/app/shared:${PYTHONPATH}"
+COPY . .
 
-COPY status-api/status_api.py /app/status_api.py
-
-RUN chown -R ${PUID}:${PGID} /app
+RUN groupadd -g ${PGID} appuser && \
+    useradd -u ${PUID} -g ${PGID} -m appuser
 
 USER ${PUID}:${PGID}
+WORKDIR /app
 
-EXPOSE 5001
+ENV PYTHONUNBUFFERED=1
+
 CMD ["python", "status_api.py"]

@@ -1,0 +1,16 @@
+---
+services:
+  organizer:
+    build: ./organizer
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - INPUT_DIR=/input
+      - OUTPUT_DIR=/output
+      - REDIS_HOST=redis
+    volumes:
+      - ./input:/input
+      - ./output:/output
+    depends_on:
+      - redis
+    networks: [backend]

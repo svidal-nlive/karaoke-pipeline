@@ -1,0 +1,14 @@
+---
+services:
+  status-api:
+    build: ./status-api
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - REDIS_HOST=redis
+      - STATUS_API_PORT=5001
+    ports:
+      - "5001:5001"
+    depends_on:
+      - redis
+    networks: [backend]

@@ -1,0 +1,26 @@
+# version: "3.9"
+---
+services:
+  watcher:
+    build: .
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - REDIS_HOST=redis
+      - INPUT_DIR=/input
+      - QUEUE_DIR=/queue
+    volumes:
+      - ./input:/input
+      - ./queue:/queue
+    depends_on:
+      - redis
+    networks: [backend]
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge

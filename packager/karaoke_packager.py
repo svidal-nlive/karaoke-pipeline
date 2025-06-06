@@ -5,7 +5,7 @@ import time
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC
 from pydub import AudioSegment
-from shared.pipeline_utils import (
+from karaoke_shared.pipeline_utils import (
     set_file_status,
     get_files_by_status,
     set_file_error,

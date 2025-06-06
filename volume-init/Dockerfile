@@ -1,15 +1,18 @@
-FROM alpine:3.19
+FROM python:3.12-alpine
 
-ARG PUID=1001
-ARG PGID=1001
+ARG PUID=1000
+ARG PGID=1000
+
+RUN addgroup -g ${PGID} appgroup && adduser -D -u ${PUID} -G appgroup appuser
+
+WORKDIR /scripts
+
+COPY volume-init.py .
+RUN chmod +x volume-init.py
+
+USER root
 
 ENV PUID=${PUID}
 ENV PGID=${PGID}
 
-# Install coreutils for chown if not present (Alpine base has chown, but coreutils for more robust use if you ever need it)
-RUN apk add --no-cache bash
-
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["python3", "/scripts/volume-init.py"]
