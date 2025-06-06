@@ -1,0 +1,57 @@
+name: Main Orchestration CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pip, setuptools, wheel
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install karaoke-shared (from PyPI or GitHub, whichever you prefer)
+        run: |
+          python -m pip install karaoke-shared
+
+      # Optionally, install dev/test dependencies if you have integration scripts/tests at top-level
+      - name: Install integration test dependencies
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      # Lint, static check, or test any orchestration-level scripts
+      - name: Lint orchestration scripts (optional)
+        run: |
+          if [ -d orchestration ]; then flake8 orchestration; fi
+
+      # Build the entire Docker Compose stack
+      - name: Build all services
+        run: |
+          docker compose build
+
+      # Optionally run up and health checks
+      - name: Run minimal integration up (optional)
+        run: |
+          docker compose up -d
+          sleep 10
+          docker compose ps
+          docker compose logs
+
+      # Optionally, shut down
+      - name: Tear down
+        if: always()
+        run: docker compose down
