@@ -55,3 +55,12 @@ jobs:
           fi
           cd ..
         done
+    - name: Install Docker Compose
+      run: |
+        sudo apt-get update
+        sudo apt-get install docker-compose
+
+    - name: E2E Pipeline Test
+      run: |
+        pip install pytest requests
+    pytest e2e/test_pipeline_e2e.py --tb=short --maxfail=1

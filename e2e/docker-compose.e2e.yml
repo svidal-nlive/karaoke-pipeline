@@ -1,0 +1,50 @@
+# version: "3.9"
+---
+services:
+  # You can override paths or settings for test run here if needed
+volumes:
+  input:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/input
+      o: bind
+  queue:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/queue
+      o: bind
+  logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/logs
+      o: bind
+  metadata:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/metadata
+      o: bind
+  output:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/output
+      o: bind
+  organized:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/organized
+      o: bind
+  stems:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/stems
+      o: bind
+networks:
+  backend:
+    external: true
