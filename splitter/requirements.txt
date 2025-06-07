@@ -10,3 +10,7 @@ demucs==4.0.1
 torch>=1.13.1
 soundfile
 git+https://github.com/svidal-nlive/karaoke-shared.git@v1.0.0
+
+# Test dependencies
+pytest
+pytest-mock
