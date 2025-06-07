@@ -41,7 +41,7 @@ jobs:
           echo "============================"
           cd "$dir"
 
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
 
           if grep -q "karaoke-shared" requirements.txt; then
             echo "karaoke-shared dependency detected"
