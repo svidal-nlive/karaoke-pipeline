@@ -4,7 +4,9 @@ services:
   volume-init:
     build:
       context: ./volume-init
-      args: [PUID=${PUID}, PGID=${PGID}]
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "0:0"
     command: []
     volumes:
@@ -18,99 +20,134 @@ services:
     restart: "no"
 
   watcher:
-    build: ./watcher
-    args: [PUID=${PUID}, PGID=${PGID}]
+    build:
+      context: ./watcher
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment: [PUID=${PUID}, PGID=${PGID}, TZ=${TZ}, LOG_LEVEL=${LOG_LEVEL}]
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+      LOG_LEVEL: ${LOG_LEVEL}
     volumes:
       - input:/input
       - queue:/queue
       - logs:/logs
-    networks: [backend]
+    networks:
+      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   metadata:
-    build: ./metadata
-    args: [PUID=${PUID}, PGID=${PGID}]
+    build:
+      context: ./metadata
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment: [PUID=${PUID}, PGID=${PGID}]
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
     volumes:
       - queue:/queue
       - metadata:/metadata
       - logs:/logs
-    networks: [backend]
+    networks:
+      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   splitter:
-    build: ./splitter
-    args: [PUID=${PUID}, PGID=${PGID}]
+    build:
+      context: ./splitter
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "${PUID}:${PGID}"
     restart: unless-stopped
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - CHUNKING_ENABLED=${CHUNKING_ENABLED}
-      - CHUNK_LENGTH_MS=${CHUNK_LENGTH_MS}
-      - SPLITTER_TYPE=${SPLITTER_TYPE}
-      - STEMS=${STEMS}
-      - STEM_TYPE=${STEM_TYPE}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      CHUNKING_ENABLED: ${CHUNKING_ENABLED}
+      CHUNK_LENGTH_MS: ${CHUNK_LENGTH_MS}
+      SPLITTER_TYPE: ${SPLITTER_TYPE}
+      STEMS: ${STEMS}
+      STEM_TYPE: ${STEM_TYPE}
     volumes:
       - queue:/queue
       - stems:/stems
       - logs:/logs
       - ./temp_chunks:/tmp
       - ./models:/app/pretrained_models
-    networks: [backend]
+    networks:
+      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   packager:
-    build: ./packager
-    args: [PUID=${PUID}, PGID=${PGID}]
+    build:
+      context: ./packager
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment: [PUID=${PUID}, PGID=${PGID}]
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
     volumes:
       - stems:/stems
       - metadata:/metadata
       - output:/output
       - logs:/logs
-    networks: [backend]
+    networks:
+      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   organizer:
-    build: ./organizer
-    args: [PUID=${PUID}, PGID=${PGID}]
+    build:
+      context: ./organizer
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "${PUID}:${PGID}"
     restart: unless-stopped
-    environment: [PUID=${PUID}, PGID=${PGID}]
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
     volumes:
       - output:/output
       - organized:/organized
       - metadata:/metadata
       - logs:/logs
-    networks: [backend]
+    networks:
+      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
 
   status-api:
-    build: ./status-api
-    args: [PUID=${PUID}, PGID=${PGID}]
+    build:
+      context: ./status-api
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
     user: "${PUID}:${PGID}"
     restart: unless-stopped
     ports:
       - "5001:5001"
-    environment: [PUID=${PUID}, PGID=${PGID}]
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
     volumes:
       - input:/input
       - queue:/queue
@@ -118,7 +155,8 @@ services:
       - output:/output
       - organized:/organized
       - logs:/logs
-    networks: [backend]
+    networks:
+      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
