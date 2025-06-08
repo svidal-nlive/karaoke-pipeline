@@ -223,9 +223,7 @@ def process_file(file_path, song_name):
                 supported = get_supported_stems(SPLITTER_TYPE, STEMS)
                 keep = [s for s in STEM_TYPE if s in supported]
                 if not keep:
-                    logger.warning(
-                        f"No requested stems found in model! Using all supported stems."
-                    )
+                    logger.warning(f"No requested stems found in model! Using all supported stems.")
                     keep = supported
                 exported = filter_and_export_stems(
                     stem_dir,
