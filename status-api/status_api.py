@@ -2,6 +2,7 @@ import os
 import logging
 import time
 import requests
+import shutil
 from flask import Flask, jsonify, request, Response
 from karaoke_shared.pipeline_utils import (
     redis_client,
