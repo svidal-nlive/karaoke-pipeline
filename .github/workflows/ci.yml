@@ -1,4 +1,4 @@
-name: CI Pipeline (All Services)
+name: CI Pipeline (All Services & E2E)
 
 on:
   push:
@@ -11,10 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"] # , "3.12"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -29,7 +30,13 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install dependencies and run tests for all services
+    - name: Install flake8 for linting
+      run: pip install flake8
+
+    - name: Lint codebase
+      run: flake8 .
+
+    - name: Per-Service Unit Tests
       run: |
         set -e
         for dir in */ ; do
@@ -38,15 +45,14 @@ jobs:
           echo "============================"
           cd "$dir"
           if [ -f requirements.txt ]; then
-            # 🟢 Special fix for splitter: Always install numpy wheel before requirements.txt
+            # Special fix for splitter: Always install numpy wheel first
             if [ "$dir" = "splitter/" ]; then
-              echo "Preinstalling numpy wheel for splitter"
               pip install --upgrade pip setuptools wheel
               pip install "numpy==1.23.5" --only-binary=:all:
             fi
             pip install -r requirements.txt
           fi
-          # Run tests if they exist
+          # Run pytest files if present
           if compgen -G "test_*.py" > /dev/null; then
             echo "Running tests in $dir"
             pytest || echo "No pytest found"
@@ -59,9 +65,27 @@ jobs:
     - name: Install Docker Compose
       run: |
         sudo apt-get update
-        sudo apt-get install docker-compose
+        sudo apt-get install -y docker-compose
 
     - name: E2E Pipeline Test
+      shell: bash
       run: |
+        # Export all required env vars for Docker Compose and services
+        export PUID=1001
+        export PGID=1001
+        export TZ=America/New_York
+        export LOG_LEVEL=INFO
+        export CHUNKING_ENABLED=false
+        export CHUNK_LENGTH_MS=240000
+        export SPLITTER_TYPE=SPLEETER
+        export STEMS=2
+        export STEM_TYPE=accompaniment
+
+        echo "E2E Environment:"
+        env | grep -E 'PUID|PGID|TZ|LOG_LEVEL|CHUNK|SPLITTER|STEM'
+
+        docker compose version
+
         pip install pytest requests
+
         pytest e2e/test_pipeline_e2e.py --tb=short --maxfail=1
