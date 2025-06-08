@@ -223,7 +223,7 @@ def process_file(file_path, song_name):
                 supported = get_supported_stems(SPLITTER_TYPE, STEMS)
                 keep = [s for s in STEM_TYPE if s in supported]
                 if not keep:
-                    logger.warning(f"No requested stems found in model! Using all supported stems.")
+                    logger.warning("No requested stems found in model! Using all supported stems.")
                     keep = supported
                 exported = filter_and_export_stems(
                     stem_dir,
@@ -288,7 +288,7 @@ def process_file(file_path, song_name):
                                 os.path.join(out_dir, f"{stem}.wav"),
                                 format="wav",
                             )
-                    logger.info(f"Chunked stems exported to {out_dir}")
+                    logger.info("Chunked stems exported to %s", out_dir)
                 return True
         except Exception as e:
             logger.error(f"Error in splitter (attempt {attempt}): {e}")
