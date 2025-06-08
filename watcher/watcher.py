@@ -29,7 +29,7 @@ LEVELS = {
 logging.basicConfig(
     level=LEVELS.get(LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
@@ -60,7 +60,10 @@ class MP3Handler(FileSystemEventHandler):
                     return
                 current_size = os.path.getsize(event.src_path)
                 current_mtime = os.path.getmtime(event.src_path)
-                if initial_size == current_size and initial_mtime == current_mtime:
+                if (
+                    initial_size == current_size
+                    and initial_mtime == current_mtime
+                ):
                     stable_count += 1
                 else:
                     stable_count = 0

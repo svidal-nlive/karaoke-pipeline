@@ -23,7 +23,7 @@ LEVELS = {
 logging.basicConfig(
     level=LEVELS.get(LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
@@ -51,8 +51,11 @@ DIRS = {
     ]
 }
 
-TEST_ASSET_URL = "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
+TEST_ASSET_URL = (
+    "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
+)
 TEST_ASSET_PATH = "/test-assets/01-Chosen.mp3"
+
 
 def list_files(directory, suffix):
     """List files in directory with optional suffix filtering."""
@@ -123,13 +126,25 @@ def retry_file():
     for stage in ["metadata", "splitter", "packager", "organizer"]:
         redis_client.delete(f"{stage}_retries:{filename}")
     redis_client.hdel(filekey, "error")
-    notify_all("File Retry Triggered", f"🔄 File {filename} reset to queued and retries cleared.")
-    return jsonify({"message": f"File {filename} reset to queued and retries cleared."})
+    notify_all(
+        "File Retry Triggered",
+        f"🔄 File {filename} reset to queued and retries cleared.",
+    )
+    return jsonify(
+        {"message": f"File {filename} reset to queued and retries cleared."}
+    )
 
 
 @app.route("/pipeline-health")
 def pipeline_health():
-    stages = ["queued", "metadata_extracted", "split", "packaged", "organized", "error"]
+    stages = [
+        "queued",
+        "metadata_extracted",
+        "split",
+        "packaged",
+        "organized",
+        "error",
+    ]
     counts = {stage: len(get_files_by_status(stage)) for stage in stages}
     return jsonify(counts)
 
@@ -148,7 +163,14 @@ start_time = time.time()
 
 @app.route("/metrics")
 def metrics():
-    stages = ["queued", "metadata_extracted", "split", "packaged", "organized", "error"]
+    stages = [
+        "queued",
+        "metadata_extracted",
+        "split",
+        "packaged",
+        "organized",
+        "error",
+    ]
     metrics_lines = []
     for stage in stages:
         count = len(get_files_by_status(stage))
@@ -157,10 +179,17 @@ def metrics():
     metrics_lines.append(f"karaoke_statusapi_uptime_seconds {uptime}")
     return Response("\n".join(metrics_lines), mimetype="text/plain")
 
+
 @app.route("/reset", methods=["POST"])
 def reset_pipeline():
-    if os.getenv("ENV") != "dev" and os.getenv("DEBUG", "false").lower() != "true":
-        return jsonify({"error": "Reset is only allowed in debug/dev mode"}), 403
+    if (
+        os.getenv("ENV") != "dev"
+        and os.getenv("DEBUG", "false").lower() != "true"
+    ):
+        return (
+            jsonify({"error": "Reset is only allowed in debug/dev mode"}),
+            403,
+        )
 
     full = request.args.get("full") == "true"
     cleared = []
@@ -184,8 +213,11 @@ def reset_pipeline():
 
     return jsonify({"status": "reset complete", "cleared": cleared}), 200
 
+
 def fetch_test_asset():
-    url = "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
+    url = (
+        "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
+    )
     path = "/test-assets/01-Chosen.mp3"  # Note: dash, not space!
     try:
         r = requests.get(url, timeout=30)
@@ -198,10 +230,19 @@ def fetch_test_asset():
         logger.error(f"Failed to fetch test asset: {e}")
         return False
 
+
 @app.route("/inject-test-file", methods=["POST"])
 def inject_test_file():
-    if os.getenv("ENV") != "dev" and os.getenv("DEBUG", "false").lower() != "true":
-        return jsonify({"error": "Test injection only allowed in debug/dev mode"}), 403
+    if (
+        os.getenv("ENV") != "dev"
+        and os.getenv("DEBUG", "false").lower() != "true"
+    ):
+        return (
+            jsonify(
+                {"error": "Test injection only allowed in debug/dev mode"}
+            ),
+            403,
+        )
 
     src = "/test-assets/01-Chosen.mp3"  # Fixed dash, matches fetch
     dest = os.path.join(DIRS["input"], "01-Chosen.mp3")
@@ -210,7 +251,14 @@ def inject_test_file():
         logger.info(f"Test file missing at {src}, attempting to fetch.")
         success = fetch_test_asset()
         if not success or not os.path.exists(src):
-            return jsonify({"error": f"Test file could not be found or fetched at {src}"}), 404
+            return (
+                jsonify(
+                    {
+                        "error": f"Test file could not be found or fetched at {src}"
+                    }
+                ),
+                404,
+            )
 
     try:
         shutil.copy2(src, dest)
@@ -218,6 +266,7 @@ def inject_test_file():
     except Exception as e:
         logger.error(f"Injection failed: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)

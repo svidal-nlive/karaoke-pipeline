@@ -30,7 +30,7 @@ LEVELS = {
 logging.basicConfig(
     level=LEVELS.get(LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
@@ -44,7 +44,9 @@ MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
 def get_metadata_from_json(file_path):
     """Reads artist/album/title metadata from JSON file, or uses defaults."""
     base = os.path.basename(file_path)
-    json_file = os.path.join(META_DIR, base.replace("_karaoke.mp3", ".mp3.json"))
+    json_file = os.path.join(
+        META_DIR, base.replace("_karaoke.mp3", ".mp3.json")
+    )
     if os.path.exists(json_file):
         try:
             with open(json_file, encoding="utf-8") as f:
@@ -84,7 +86,8 @@ def organize_file(file_path, file):
         error_details = f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
         set_file_error(file, error_details)
         notify_all(
-            "Karaoke Pipeline Error", f"Organizer error for {file} at {timestamp}:\n{e}"
+            "Karaoke Pipeline Error",
+            f"Organizer error for {file} at {timestamp}:\n{e}",
         )
         redis_client.incr(f"organizer_retries:{file}")
 
@@ -94,7 +97,9 @@ def run_organizer():
     while True:
         files = get_files_by_status("packaged")
         for file in files:
-            file_path = os.path.join(OUTPUT_DIR, file.replace(".mp3", "_karaoke.mp3"))
+            file_path = os.path.join(
+                OUTPUT_DIR, file.replace(".mp3", "_karaoke.mp3")
+            )
             if not (
                 is_valid_karaoke_mp3(os.path.basename(file_path))
                 and os.path.exists(file_path)
@@ -112,7 +117,9 @@ def run_organizer():
             except Exception as e:
                 tb = traceback.format_exc()
                 timestamp = datetime.datetime.now().isoformat()
-                error_details = f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
+                error_details = (
+                    f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
+                )
                 set_file_error(file, error_details)
                 notify_all(
                     "Karaoke Pipeline Error",

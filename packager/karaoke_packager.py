@@ -30,7 +30,7 @@ LEVELS = {
 logging.basicConfig(
     level=LEVELS.get(LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
@@ -112,7 +112,9 @@ def run_packager():
             out_path = os.path.join(OUTPUT_DIR, f"{song_name}_karaoke.mp3")
 
             if not os.path.exists(inst_path):
-                set_file_error(file, f"Missing accompaniment.wav for {song_name}")
+                set_file_error(
+                    file, f"Missing accompaniment.wav for {song_name}"
+                )
                 continue
             if not os.path.exists(meta_path):
                 set_file_error(file, f"Missing metadata JSON for {song_name}")
@@ -141,7 +143,9 @@ def run_packager():
             except Exception as e:
                 tb = traceback.format_exc()
                 timestamp = datetime.datetime.now().isoformat()
-                error_details = f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
+                error_details = (
+                    f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
+                )
                 set_file_error(file, error_details)
                 notify_all(
                     "Karaoke Pipeline Error",

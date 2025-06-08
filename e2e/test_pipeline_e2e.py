@@ -1,14 +1,15 @@
-import pytest
 import subprocess
 import requests
-import shutil
 import time
 import os
 
-TEST_MP3_URL = "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
+TEST_MP3_URL = (
+    "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
+)
 TEST_FILENAME = "01-Chosen.mp3"
 STATUS_API_URL = "http://localhost:5001"
 ORGANIZED_DIR = "organized"  # Must match Docker volume mapping!
+
 
 def wait_for_status_api(timeout=60):
     for _ in range(timeout):
@@ -21,6 +22,7 @@ def wait_for_status_api(timeout=60):
         time.sleep(1)
     return False
 
+
 def wait_for_file_status(filename, expected_status, timeout=180):
     for _ in range(timeout):
         try:
@@ -28,12 +30,16 @@ def wait_for_file_status(filename, expected_status, timeout=180):
             r.raise_for_status()
             files = r.json().get("files", [])
             for f in files:
-                if f["filename"] == filename and f["status"] == expected_status:
+                if (
+                    f["filename"] == filename
+                    and f["status"] == expected_status
+                ):
                     return True
         except Exception:
             pass
         time.sleep(2)
     return False
+
 
 def test_full_pipeline_e2e(tmp_path):
     # --- Step 1: Ensure clean env
@@ -57,7 +63,9 @@ def test_full_pipeline_e2e(tmp_path):
     # --- Step 4: Wait for pipeline to process file
     stages = ["queued", "metadata_extracted", "split", "packaged", "organized"]
     for stage in stages:
-        assert wait_for_file_status(TEST_FILENAME, stage, timeout=90), f"File did not reach stage: {stage}"
+        assert wait_for_file_status(
+            TEST_FILENAME, stage, timeout=90
+        ), f"File did not reach stage: {stage}"
 
     # --- Step 5: Confirm final output exists in organized directory
     found = False

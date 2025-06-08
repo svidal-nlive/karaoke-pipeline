@@ -2,7 +2,7 @@
 import pytest
 import json
 from packager.karaoke_packager import robust_load_metadata, apply_metadata
-from mutagen.mp3 import MP3
+
 
 def test_robust_load_metadata(tmp_path):
     j = tmp_path / "meta.json"
@@ -15,6 +15,7 @@ def test_robust_load_metadata(tmp_path):
     bad.write_text("not json")
     result2 = robust_load_metadata(str(bad))
     assert "TIT2" in result2
+
 
 def test_apply_metadata(tmp_path):
     # Create fake wav file
@@ -32,12 +33,20 @@ def test_apply_metadata(tmp_path):
     # Should at least create the file
     assert out_path.exists() or True
 
+
 def test_missing_files_error(monkeypatch):
     from packager import karaoke_packager
+
     # Patch get_files_by_status to return a file with missing stem/meta
-    monkeypatch.setattr(karaoke_packager, "get_files_by_status", lambda x: ["foo.mp3"])
-    monkeypatch.setattr(karaoke_packager, "set_file_error", lambda *a, **k: None)
+    monkeypatch.setattr(
+        karaoke_packager, "get_files_by_status", lambda x: ["foo.mp3"]
+    )
+    monkeypatch.setattr(
+        karaoke_packager, "set_file_error", lambda *a, **k: None
+    )
     monkeypatch.setattr(karaoke_packager, "notify_all", lambda *a, **k: None)
-    monkeypatch.setattr(karaoke_packager, "handle_auto_retry", lambda *a, **k: None)
+    monkeypatch.setattr(
+        karaoke_packager, "handle_auto_retry", lambda *a, **k: None
+    )
     # Should not raise
     karaoke_packager.run_packager()

@@ -29,7 +29,7 @@ LEVELS = {
 logging.basicConfig(
     level=LEVELS.get(LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
@@ -40,13 +40,21 @@ MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
 RETRY_DELAY = int(os.environ.get("RETRY_DELAY", 10))
 
 # --- New env config ---
-CHUNKING_ENABLED = os.environ.get("CHUNKING_ENABLED", "false").lower() == "true"
+CHUNKING_ENABLED = (
+    os.environ.get("CHUNKING_ENABLED", "false").lower() == "true"
+)
 CHUNK_LENGTH_MS = int(os.environ.get("CHUNK_LENGTH_MS", 240000))
 SPLITTER_TYPE = os.environ.get("SPLITTER_TYPE", "SPLEETER").upper()
 STEMS = int(os.environ.get("STEMS", 2))
-STEM_TYPE = [s.strip().lower() for s in os.environ.get("STEM_TYPE", "vocals,accompaniment").split(",") if s.strip()]
+STEM_TYPE = [
+    s.strip().lower()
+    for s in os.environ.get("STEM_TYPE", "vocals,accompaniment").split(",")
+    if s.strip()
+]
 
-logger.info(f"CHUNKING_ENABLED={CHUNKING_ENABLED} (raw env: {os.environ.get('CHUNKING_ENABLED')})")
+logger.info(
+    f"CHUNKING_ENABLED={CHUNKING_ENABLED} (raw env: {os.environ.get('CHUNKING_ENABLED')})"
+)
 logger.info(f"CHUNK_LENGTH_MS={CHUNK_LENGTH_MS}")
 logger.info(f"SPLITTER_TYPE={SPLITTER_TYPE}")
 logger.info(f"STEMS={STEMS}")
@@ -56,13 +64,14 @@ logger.info(f"STEM_TYPE={STEM_TYPE}")
 SPLEETER_MODELS = {
     2: ["vocals", "accompaniment"],
     4: ["vocals", "drums", "bass", "other"],
-    5: ["vocals", "drums", "bass", "piano", "other"]
+    5: ["vocals", "drums", "bass", "piano", "other"],
 }
 DEMUCS_MODELS = {
     2: ["vocals", "accompaniment"],
     4: ["vocals", "drums", "bass", "other"],
-    6: ["vocals", "drums", "bass", "guitar", "piano", "other"]
+    6: ["vocals", "drums", "bass", "guitar", "piano", "other"],
 }
+
 
 # --- Stem mapping between user-friendly names and Demucs output files ---
 def map_demucs_stem_name(stem, stems_num):
@@ -70,15 +79,12 @@ def map_demucs_stem_name(stem, stems_num):
     Map Spleeter-style names to Demucs output filenames for all stem configs.
     """
     mapping = {
-        2: {
-            "vocals": "vocals",
-            "accompaniment": "no_vocals"
-        },
+        2: {"vocals": "vocals", "accompaniment": "no_vocals"},
         4: {
             "vocals": "vocals",
             "drums": "drums",
             "bass": "bass",
-            "other": "other"
+            "other": "other",
         },
         6: {
             "vocals": "vocals",
@@ -86,10 +92,11 @@ def map_demucs_stem_name(stem, stems_num):
             "bass": "bass",
             "guitar": "guitar",
             "piano": "piano",
-            "other": "other"
-        }
+            "other": "other",
+        },
     }
     return mapping.get(stems_num, {}).get(stem, stem)
+
 
 def get_supported_stems(splitter_type, stems_num):
     if splitter_type == "SPLEETER":
@@ -97,6 +104,7 @@ def get_supported_stems(splitter_type, stems_num):
     elif splitter_type == "DEMUCS":
         return DEMUCS_MODELS.get(stems_num, [])
     return []
+
 
 def get_demucs_model_name(stems_num):
     if stems_num == 2:
@@ -108,9 +116,12 @@ def get_demucs_model_name(stems_num):
     else:
         return "htdemucs"
 
+
 def run_spleeter(input_path, output_dir, stems_num):
     model = f"spleeter:{stems_num}stems"
-    logger.info(f"Running Spleeter: spleeter separate -p {model} -o {output_dir} {input_path}")
+    logger.info(
+        f"Running Spleeter: spleeter separate -p {model} -o {output_dir} {input_path}"
+    )
     result = subprocess.run(
         [
             "spleeter",
@@ -130,16 +141,14 @@ def run_spleeter(input_path, output_dir, stems_num):
     if result.returncode != 0:
         raise RuntimeError(f"Spleeter error: {result.stderr}")
     # Spleeter always writes stems under output_dir/song_name
-    return os.path.join(output_dir, os.path.splitext(os.path.basename(input_path))[0])
+    return os.path.join(
+        output_dir, os.path.splitext(os.path.basename(input_path))[0]
+    )
+
 
 def run_demucs(input_path, output_dir, stems_num):
     model_name = get_demucs_model_name(stems_num)
-    args = [
-        "demucs",
-        "-o", output_dir,
-        "-n", model_name,
-        input_path
-    ]
+    args = ["demucs", "-o", output_dir, "-n", model_name, input_path]
     if stems_num == 2:
         args += ["--two-stems", "vocals"]
     logger.info(f"Running Demucs: {' '.join(args)}")
@@ -155,7 +164,11 @@ def run_demucs(input_path, output_dir, stems_num):
         raise RuntimeError(f"Demucs error: {result.stderr}")
     # Output: output_dir/model_name/song_name
     model_dir = model_name
-    out_path = os.path.join(output_dir, model_dir, os.path.splitext(os.path.basename(input_path))[0])
+    out_path = os.path.join(
+        output_dir,
+        model_dir,
+        os.path.splitext(os.path.basename(input_path))[0],
+    )
     if not os.path.exists(out_path):
         # Sometimes Demucs uses just model name (without song subdir for short files)
         for d in os.listdir(os.path.join(output_dir, model_dir)):
@@ -167,7 +180,10 @@ def run_demucs(input_path, output_dir, stems_num):
         raise RuntimeError("Demucs output folder not found.")
     return out_path
 
-def filter_and_export_stems(stems_folder, keep_stems, dest_dir, splitter_type="SPLEETER", stems_num=2):
+
+def filter_and_export_stems(
+    stems_folder, keep_stems, dest_dir, splitter_type="SPLEETER", stems_num=2
+):
     os.makedirs(dest_dir, exist_ok=True)
     exported = []
     for stem in keep_stems:
@@ -179,10 +195,13 @@ def filter_and_export_stems(stems_folder, keep_stems, dest_dir, splitter_type="S
             stem_file = os.path.join(stems_folder, f"{out_stem}.{ext}")
             if os.path.exists(stem_file):
                 # Export as requested stem name for consistency
-                AudioSegment.from_file(stem_file).export(os.path.join(dest_dir, f"{stem}.{ext}"), format=ext)
+                AudioSegment.from_file(stem_file).export(
+                    os.path.join(dest_dir, f"{stem}.{ext}"), format=ext
+                )
                 exported.append(stem)
                 break
     return exported
+
 
 def process_file(file_path, song_name):
     for attempt in range(1, MAX_RETRIES + 1):
@@ -197,22 +216,36 @@ def process_file(file_path, song_name):
                 elif SPLITTER_TYPE == "DEMUCS":
                     stem_dir = run_demucs(file_path, out_dir, STEMS)
                 else:
-                    raise RuntimeError(f"Unknown SPLITTER_TYPE: {SPLITTER_TYPE}")
+                    raise RuntimeError(
+                        f"Unknown SPLITTER_TYPE: {SPLITTER_TYPE}"
+                    )
 
                 supported = get_supported_stems(SPLITTER_TYPE, STEMS)
                 keep = [s for s in STEM_TYPE if s in supported]
                 if not keep:
-                    logger.warning(f"No requested stems found in model! Using all supported stems.")
+                    logger.warning(
+                        f"No requested stems found in model! Using all supported stems."
+                    )
                     keep = supported
-                exported = filter_and_export_stems(stem_dir, keep, out_dir, splitter_type=SPLITTER_TYPE, stems_num=STEMS)
+                exported = filter_and_export_stems(
+                    stem_dir,
+                    keep,
+                    out_dir,
+                    splitter_type=SPLITTER_TYPE,
+                    stems_num=STEMS,
+                )
                 logger.info(f"Exported stems: {exported}")
                 return True
             else:
                 # --- CHUNKING ENABLED: chunk, split, merge stems ---
-                logger.info(f"Chunking is enabled (length: {CHUNK_LENGTH_MS} ms)")
+                logger.info(
+                    f"Chunking is enabled (length: {CHUNK_LENGTH_MS} ms)"
+                )
                 audio = AudioSegment.from_file(file_path)
                 chunks = make_chunks(audio, CHUNK_LENGTH_MS)
-                temp_stem_data = {stem: AudioSegment.empty() for stem in STEM_TYPE}
+                temp_stem_data = {
+                    stem: AudioSegment.empty() for stem in STEM_TYPE
+                }
                 with tempfile.TemporaryDirectory() as temp_dir:
                     for idx, chunk in enumerate(chunks):
                         chunk_path = os.path.join(temp_dir, f"chunk_{idx}.mp3")
@@ -220,11 +253,15 @@ def process_file(file_path, song_name):
                         chunk_out = os.path.join(temp_dir, f"output_{idx}")
                         os.makedirs(chunk_out, exist_ok=True)
                         if SPLITTER_TYPE == "SPLEETER":
-                            stem_dir = run_spleeter(chunk_path, chunk_out, STEMS)
+                            stem_dir = run_spleeter(
+                                chunk_path, chunk_out, STEMS
+                            )
                         elif SPLITTER_TYPE == "DEMUCS":
                             stem_dir = run_demucs(chunk_path, chunk_out, STEMS)
                         else:
-                            raise RuntimeError(f"Unknown SPLITTER_TYPE: {SPLITTER_TYPE}")
+                            raise RuntimeError(
+                                f"Unknown SPLITTER_TYPE: {SPLITTER_TYPE}"
+                            )
                         supported = get_supported_stems(SPLITTER_TYPE, STEMS)
                         keep = [s for s in STEM_TYPE if s in supported]
                         if not keep:
@@ -235,17 +272,24 @@ def process_file(file_path, song_name):
                             if SPLITTER_TYPE == "DEMUCS":
                                 out_stem = map_demucs_stem_name(stem, STEMS)
                             for ext in ["wav", "mp3", "flac"]:
-                                stem_file = os.path.join(stem_dir, f"{out_stem}.{ext}")
+                                stem_file = os.path.join(
+                                    stem_dir, f"{out_stem}.{ext}"
+                                )
                                 if os.path.exists(stem_file):
                                     seg = AudioSegment.from_file(stem_file)
-                                    temp_stem_data.setdefault(stem, AudioSegment.empty())
+                                    temp_stem_data.setdefault(
+                                        stem, AudioSegment.empty()
+                                    )
                                     temp_stem_data[stem] += seg
                                     break
                     out_dir = os.path.join(STEMS_DIR, song_name)
                     os.makedirs(out_dir, exist_ok=True)
                     for stem, seg in temp_stem_data.items():
                         if len(seg) > 0:
-                            seg.export(os.path.join(out_dir, f"{stem}.wav"), format="wav")
+                            seg.export(
+                                os.path.join(out_dir, f"{stem}.wav"),
+                                format="wav",
+                            )
                     logger.info(f"Chunked stems exported to {out_dir}")
                 return True
         except Exception as e:
@@ -254,6 +298,7 @@ def process_file(file_path, song_name):
                 time.sleep(RETRY_DELAY)
             else:
                 return str(e)
+
 
 def main():
     while True:
@@ -271,7 +316,8 @@ def main():
                     set_file_status(file, "split")
                     redis_client.delete(f"splitter_retries:{file}")
                     notify_all(
-                        "Karaoke Pipeline Success", f"✅ Split completed for {file}"
+                        "Karaoke Pipeline Success",
+                        f"✅ Split completed for {file}",
                     )
                 else:
                     raise Exception(result)
@@ -288,13 +334,17 @@ def main():
             except Exception as e:
                 tb = traceback.format_exc()
                 timestamp = datetime.datetime.now().isoformat()
-                error_details = f"{timestamp}\nSplitter error: {e}\n\nTraceback:\n{tb}"
+                error_details = (
+                    f"{timestamp}\nSplitter error: {e}\n\nTraceback:\n{tb}"
+                )
                 set_file_error(file, error_details)
                 notify_all(
-                    "Karaoke Pipeline Error", f"❌ Splitter failed for {file}: {e}"
+                    "Karaoke Pipeline Error",
+                    f"❌ Splitter failed for {file}: {e}",
                 )
                 redis_client.incr(f"splitter_retries:{file}")
         time.sleep(5)
+
 
 if __name__ == "__main__":
     main()
