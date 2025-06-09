@@ -1,7 +1,6 @@
 # version: "3.9"
----
-services:
-  # You can override paths or settings for test run here if needed
+services: {}
+
 volumes:
   input:
     driver: local
@@ -15,17 +14,11 @@ volumes:
       type: none
       device: ${PWD}/queue
       o: bind
-  logs:
+  stems:
     driver: local
     driver_opts:
       type: none
-      device: ${PWD}/logs
-      o: bind
-  metadata:
-    driver: local
-    driver_opts:
-      type: none
-      device: ${PWD}/metadata
+      device: ${PWD}/stems
       o: bind
   output:
     driver: local
@@ -39,12 +32,19 @@ volumes:
       type: none
       device: ${PWD}/organized
       o: bind
-  stems:
+  metadata:
     driver: local
     driver_opts:
       type: none
-      device: ${PWD}/stems
+      device: ${PWD}/metadata/json
       o: bind
+  logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/logs
+      o: bind
+
 networks:
   backend:
-    external: true
+    driver: bridge

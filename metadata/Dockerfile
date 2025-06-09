@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-slim AS build
+FROM python:3.11-slim AS build
 
 # Setup non-root user
 ARG PUID=1000
@@ -12,15 +12,12 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Install pip dependencies
 COPY requirements.txt ./
 RUN python -m pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
-# Copy source
 COPY . .
 
-# Add non-root user for runtime
 RUN groupadd -g ${PGID} appuser && \
     useradd -u ${PUID} -g ${PGID} -m appuser
 

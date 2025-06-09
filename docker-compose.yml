@@ -1,6 +1,12 @@
 # version: "3.9"
----
 services:
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    networks: [backend]
+    volumes:
+      - redis_data:/data
+
   volume-init:
     build:
       context: ./volume-init
@@ -17,6 +23,7 @@ services:
       - output:/output
       - organized:/organized
       - stems:/stems
+    networks: [backend]
     restart: "no"
 
   watcher:
@@ -26,7 +33,6 @@ services:
         PUID: ${PUID}
         PGID: ${PGID}
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
@@ -36,11 +42,12 @@ services:
       - input:/input
       - queue:/queue
       - logs:/logs
-    networks:
-      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks: [backend]
 
   metadata:
     build:
@@ -49,7 +56,6 @@ services:
         PUID: ${PUID}
         PGID: ${PGID}
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
@@ -57,11 +63,12 @@ services:
       - queue:/queue
       - metadata:/metadata
       - logs:/logs
-    networks:
-      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks: [backend]
 
   splitter:
     build:
@@ -70,7 +77,6 @@ services:
         PUID: ${PUID}
         PGID: ${PGID}
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
@@ -85,11 +91,12 @@ services:
       - logs:/logs
       - ./temp_chunks:/tmp
       - ./models:/app/pretrained_models
-    networks:
-      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks: [backend]
 
   packager:
     build:
@@ -98,7 +105,6 @@ services:
         PUID: ${PUID}
         PGID: ${PGID}
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
@@ -107,11 +113,12 @@ services:
       - metadata:/metadata
       - output:/output
       - logs:/logs
-    networks:
-      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks: [backend]
 
   organizer:
     build:
@@ -120,7 +127,6 @@ services:
         PUID: ${PUID}
         PGID: ${PGID}
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
@@ -129,11 +135,12 @@ services:
       - organized:/organized
       - metadata:/metadata
       - logs:/logs
-    networks:
-      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks: [backend]
 
   status-api:
     build:
@@ -142,7 +149,6 @@ services:
         PUID: ${PUID}
         PGID: ${PGID}
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
     ports:
       - "5001:5001"
     environment:
@@ -151,32 +157,28 @@ services:
     volumes:
       - input:/input
       - queue:/queue
-      - metadata:/metadata
+      - metadata:/metadata/json
       - output:/output
       - organized:/organized
       - logs:/logs
-    networks:
-      - backend
     depends_on:
       volume-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks: [backend]
 
 volumes:
   input:
-    external: true
   queue:
-    external: true
   stems:
-    external: true
   output:
-    external: true
   organized:
-    external: true
   metadata:
-    external: true
   logs:
-    external: true
+  redis_data:
 
 networks:
   backend:
-    external: true
+    driver: bridge
+

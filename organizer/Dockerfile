@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 ARG PUID=1000
 ARG PGID=1000

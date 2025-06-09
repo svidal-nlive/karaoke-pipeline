@@ -42,10 +42,12 @@ def wait_for_file_status(filename, expected_status, timeout=180):
 
 
 def test_full_pipeline_e2e(tmp_path):
+    main_compose = "docker-compose.yml"
+    e2e_compose = "e2e/docker-compose.e2e.yml"
     # --- Step 1: Ensure clean env
-    subprocess.run(["docker", "compose", "down", "-v"], check=True)
+    subprocess.run(["docker", "compose", "-f", main_compose, "-f", e2e_compose, "down", "-v"], check=True)
     # --- Step 2: Start stack
-    subprocess.run(["docker", "compose", "up", "-d"], check=True)
+    subprocess.run(["docker", "compose", "-f", main_compose, "-f", e2e_compose, "up", "-d"], check=True)
     assert wait_for_status_api(), "status-api /health did not become ready"
 
     # --- Step 3: Download and inject test file into input volume

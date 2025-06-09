@@ -44,7 +44,6 @@ RETRY_DELAY = int(os.environ.get("RETRY_DELAY", 5))
 
 
 def robust_load_metadata(meta_path):
-    """Load metadata JSON, falling back to defaults if not present."""
     fallback = {
         "TIT2": "Unknown Title",
         "TPE1": "Unknown Artist",
