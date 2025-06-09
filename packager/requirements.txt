@@ -1,3 +1,5 @@
+setuptools>=68.0
+pip>=23.2
 # ffmpeg-python==0.2.0
 mutagen==1.47.0
 pydub==0.25.1
