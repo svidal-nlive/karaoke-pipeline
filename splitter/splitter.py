@@ -1,3 +1,4 @@
+# splitter/splitter.py
 import os
 import time
 import logging
@@ -72,12 +73,8 @@ DEMUCS_MODELS = {
     6: ["vocals", "drums", "bass", "guitar", "piano", "other"],
 }
 
-
 # --- Stem mapping between user-friendly names and Demucs output files ---
 def map_demucs_stem_name(stem, stems_num):
-    """
-    Map Spleeter-style names to Demucs output filenames for all stem configs.
-    """
     mapping = {
         2: {"vocals": "vocals", "accompaniment": "no_vocals"},
         4: {
@@ -97,14 +94,12 @@ def map_demucs_stem_name(stem, stems_num):
     }
     return mapping.get(stems_num, {}).get(stem, stem)
 
-
 def get_supported_stems(splitter_type, stems_num):
     if splitter_type == "SPLEETER":
         return SPLEETER_MODELS.get(stems_num, [])
     elif splitter_type == "DEMUCS":
         return DEMUCS_MODELS.get(stems_num, [])
     return []
-
 
 def get_demucs_model_name(stems_num):
     if stems_num == 2:
@@ -115,7 +110,6 @@ def get_demucs_model_name(stems_num):
         return "htdemucs"
     else:
         return "htdemucs"
-
 
 def run_spleeter(input_path, output_dir, stems_num):
     model = f"spleeter:{stems_num}stems"
@@ -144,7 +138,6 @@ def run_spleeter(input_path, output_dir, stems_num):
     return os.path.join(
         output_dir, os.path.splitext(os.path.basename(input_path))[0]
     )
-
 
 def run_demucs(input_path, output_dir, stems_num):
     model_name = get_demucs_model_name(stems_num)
@@ -180,7 +173,6 @@ def run_demucs(input_path, output_dir, stems_num):
         raise RuntimeError("Demucs output folder not found.")
     return out_path
 
-
 def filter_and_export_stems(
     stems_folder, keep_stems, dest_dir, splitter_type="SPLEETER", stems_num=2
 ):
@@ -201,7 +193,6 @@ def filter_and_export_stems(
                 exported.append(stem)
                 break
     return exported
-
 
 def process_file(file_path, song_name):
     for attempt in range(1, MAX_RETRIES + 1):
@@ -297,7 +288,6 @@ def process_file(file_path, song_name):
             else:
                 return str(e)
 
-
 def main():
     while True:
         files = get_files_by_status("metadata_extracted")
@@ -342,7 +332,6 @@ def main():
                 )
                 redis_client.incr(f"splitter_retries:{file}")
         time.sleep(5)
-
 
 if __name__ == "__main__":
     main()

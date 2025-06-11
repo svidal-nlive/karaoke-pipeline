@@ -1,33 +1,44 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.11-slim AS build
+FROM python:3.11-slim AS builder
 
-ARG PUID=1000
-ARG PGID=1000
+WORKDIR /app
 
-# System dependencies for Spleeter and audio tools
+# System dependencies for audio
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        git \
         ffmpeg \
-        build-essential \
-        && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
+        git \
+        gcc \
+        libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
 
-COPY . .
+RUN python -m venv /venv && \
+    /venv/bin/pip install --upgrade pip setuptools wheel && \
+    # numpy wheel pre-installed for Spleeter
+    /venv/bin/pip install numpy==1.23.5 --only-binary=:all: && \
+    /venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Setup non-root user
-RUN groupadd -g ${PGID} appuser && \
-    useradd -u ${PUID} -g ${PGID} -m appuser
+# --- Production image ---
+FROM python:3.11-slim
 
-USER ${PUID}:${PGID}
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+# System runtime deps only (smaller)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg libsndfile1 && \
+    rm -rf /var/lib/apt/lists/*
 
-CMD ["python", "splitter.py"]
+COPY --from=builder /venv /venv
+
+COPY splitter.py ./
+COPY requirements.txt ./
+
+ENV PATH="/venv/bin:$PATH"
+
+EXPOSE 5000
+
+ENTRYPOINT ["python", "splitter.py"]
+

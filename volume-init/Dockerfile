@@ -1,18 +1,19 @@
-FROM python:3.12-alpine
+# syntax=docker/dockerfile:1
 
-ARG PUID=1000
-ARG PGID=1000
+FROM python:3.11-slim AS build
 
-RUN addgroup -g ${PGID} appgroup && adduser -D -u ${PUID} -G appgroup appuser
+# No build dependencies for this service
+WORKDIR /app
 
-WORKDIR /scripts
+# Production image
+FROM python:3.11-slim
 
-COPY volume-init.py .
+COPY volume-init.py /app/volume-init.py
+
+WORKDIR /app
+
+# Make sure it is executable
 RUN chmod +x volume-init.py
 
-USER root
+ENTRYPOINT ["python", "volume-init.py"]
 
-ENV PUID=${PUID}
-ENV PGID=${PGID}
-
-ENTRYPOINT ["python3", "/scripts/volume-init.py"]

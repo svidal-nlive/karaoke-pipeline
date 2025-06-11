@@ -1,29 +1,31 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.11-slim AS build
-
-# Setup non-root user
-ARG PUID=1000
-ARG PGID=1000
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
+
+# System deps
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
 
-COPY . .
+RUN python -m venv /venv \
+    && /venv/bin/pip install --upgrade pip setuptools wheel \
+    && /venv/bin/pip install --no-cache-dir -r requirements.txt
 
-RUN groupadd -g ${PGID} appuser && \
-    useradd -u ${PUID} -g ${PGID} -m appuser
+# --- Production image ---
+FROM python:3.11-slim
 
-USER ${PUID}:${PGID}
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+COPY --from=builder /venv /venv
 
-CMD ["python", "metadata.py"]
+COPY metadata.py ./
+COPY requirements.txt ./
+
+ENV PATH="/venv/bin:$PATH"
+
+EXPOSE 5000
+
+ENTRYPOINT ["python", "metadata.py"]
+

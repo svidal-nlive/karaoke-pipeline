@@ -1,29 +1,32 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-slim
+FROM python:3.11-slim AS builder
 
-ARG PUID=1000
-ARG PGID=1000
+WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        git \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
 
-COPY . .
+RUN python -m venv /venv && \
+    /venv/bin/pip install --upgrade pip setuptools wheel && \
+    /venv/bin/pip install --no-cache-dir -r requirements.txt
 
-RUN groupadd -g ${PGID} appuser && \
-    useradd -u ${PUID} -g ${PGID} -m appuser
+# --- Production image ---
+FROM python:3.11-slim
 
-USER ${PUID}:${PGID}
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+COPY --from=builder /venv /venv
 
-CMD ["python", "status_api.py"]
+COPY status_api.py ./
+COPY requirements.txt ./
+
+ENV PATH="/venv/bin:$PATH"
+
+EXPOSE 5001
+
+ENTRYPOINT ["python", "status_api.py"]
+

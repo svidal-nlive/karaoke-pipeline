@@ -1,31 +1,32 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.11-slim AS build
+FROM python:3.11-slim AS builder
 
-# Set up env
-ARG PUID=1000
-ARG PGID=1000
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy and install requirements
 WORKDIR /app
+
+# Install pip and build dependencies
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install in a virtualenv for smaller final image
 COPY requirements.txt ./
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
+RUN python -m venv /venv \
+    && /venv/bin/pip install --upgrade pip setuptools wheel \
+    && /venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Copy source
-COPY . .
+# --- Production image ---
+FROM python:3.11-slim
 
-# Add non-root user for security
-RUN groupadd -g ${PGID} appuser && \
-    useradd -u ${PUID} -g ${PGID} -m appuser
-
-USER ${PUID}:${PGID}
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+# Copy venv from builder stage
+COPY --from=builder /venv /venv
 
-CMD ["python", "watcher.py"]
+# Copy source files
+COPY watcher.py ./
+COPY requirements.txt ./
+
+ENV PATH="/venv/bin:$PATH"
+
+EXPOSE 5000
+
+ENTRYPOINT ["python", "watcher.py"]

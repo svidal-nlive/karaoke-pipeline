@@ -17,16 +17,13 @@ DIRS = [
     "/profile",
 ]
 
-
 def log(msg):
     print(msg, flush=True)
-
 
 def parse_uid_gid():
     puid = int(os.environ.get("PUID", "1000"))
     pgid = int(os.environ.get("PGID", "1000"))
     return puid, pgid
-
 
 def ensure_dir(path, uid, gid):
     # Create dir if missing
@@ -62,7 +59,6 @@ def ensure_dir(path, uid, gid):
     except Exception as e:
         return f"ERROR: Chown failed: {e}"
 
-
 def main():
     puid, pgid = parse_uid_gid()
     uname = (
@@ -94,7 +90,6 @@ def main():
         )
         sys.exit(1)
     log("\n✅ [volume-init] All volumes checked and fixed where necessary.")
-
 
 if __name__ == "__main__":
     main()

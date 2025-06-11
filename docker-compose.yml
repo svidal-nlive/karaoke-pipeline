@@ -1,11 +1,14 @@
-# version: "3.9"
+# Root-level docker-compose.yml for Karaoke Pipeline
+# Supports bind-mount or named-volume modes via profiles
+
+version: "3.9"
 services:
   redis:
     image: redis:alpine
     restart: unless-stopped
-    networks: [backend]
     volumes:
       - redis_data:/data
+    networks: [backend]
 
   volume-init:
     build:
@@ -16,6 +19,7 @@ services:
     user: "0:0"
     command: []
     volumes:
+      # Always reference /input, /queue, etc; profiles swap bind/named volumes
       - input:/input
       - queue:/queue
       - logs:/logs
@@ -27,11 +31,10 @@ services:
     restart: "no"
 
   watcher:
-    build:
-      context: ./watcher
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
+    build: ./watcher
+    args:
+      PUID: ${PUID}
+      PGID: ${PGID}
     user: "${PUID}:${PGID}"
     environment:
       PUID: ${PUID}
@@ -50,11 +53,10 @@ services:
     networks: [backend]
 
   metadata:
-    build:
-      context: ./metadata
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
+    build: ./metadata
+    args:
+      PUID: ${PUID}
+      PGID: ${PGID}
     user: "${PUID}:${PGID}"
     environment:
       PUID: ${PUID}
@@ -71,11 +73,10 @@ services:
     networks: [backend]
 
   splitter:
-    build:
-      context: ./splitter
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
+    build: ./splitter
+    args:
+      PUID: ${PUID}
+      PGID: ${PGID}
     user: "${PUID}:${PGID}"
     environment:
       PUID: ${PUID}
@@ -99,11 +100,10 @@ services:
     networks: [backend]
 
   packager:
-    build:
-      context: ./packager
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
+    build: ./packager
+    args:
+      PUID: ${PUID}
+      PGID: ${PGID}
     user: "${PUID}:${PGID}"
     environment:
       PUID: ${PUID}
@@ -121,11 +121,10 @@ services:
     networks: [backend]
 
   organizer:
-    build:
-      context: ./organizer
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
+    build: ./organizer
+    args:
+      PUID: ${PUID}
+      PGID: ${PGID}
     user: "${PUID}:${PGID}"
     environment:
       PUID: ${PUID}
@@ -143,11 +142,10 @@ services:
     networks: [backend]
 
   status-api:
-    build:
-      context: ./status-api
-      args:
-        PUID: ${PUID}
-        PGID: ${PGID}
+    build: ./status-api
+    args:
+      PUID: ${PUID}
+      PGID: ${PGID}
     user: "${PUID}:${PGID}"
     ports:
       - "5001:5001"
@@ -157,7 +155,7 @@ services:
     volumes:
       - input:/input
       - queue:/queue
-      - metadata:/metadata/json
+      - metadata:/metadata
       - output:/output
       - organized:/organized
       - logs:/logs
@@ -168,17 +166,86 @@ services:
         condition: service_started
     networks: [backend]
 
+  dashboard:
+    build: ./dashboard/karaoke-pipeline-dashboard
+    ports:
+      - "3001:80"
+    environment:
+      - REACT_APP_STATUS_API_URL=http://status-api:5001
+    depends_on:
+      - status-api
+    networks: [backend]
+
+# ----------- Volume and Profile Definitions -------------
 volumes:
+  # Default: named volumes for all pipeline shared dirs
   input:
+    name: input
   queue:
+    name: queue
   stems:
+    name: stems
   output:
+    name: output
   organized:
+    name: organized
   metadata:
+    name: metadata
   logs:
+    name: logs
   redis_data:
+    name: redis_data
+
+# Profiles for bind-mounts instead of named volumes
+# To use: `docker compose --profile bind up`
+profiles:
+  bind:
+    # Only affects volume definitions; all services use the same mount points
+    volumes:
+      input:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/input
+          o: bind
+      queue:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/queue
+          o: bind
+      stems:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/stems
+          o: bind
+      output:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/output
+          o: bind
+      organized:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/organized
+          o: bind
+      metadata:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/metadata
+          o: bind
+      logs:
+        driver: local
+        driver_opts:
+          type: none
+          device: ${PWD}/pipeline-data/logs
+          o: bind
+    # Redis always named
 
 networks:
   backend:
     driver: bridge
-
