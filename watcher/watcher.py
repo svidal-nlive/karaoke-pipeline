@@ -82,8 +82,22 @@ class MP3Handler(FileSystemEventHandler):
                 f"Error in watcher for {fname} at {timestamp}:\n{e}",
             )
 
+def initial_scan_and_queue():
+    for fname in os.listdir(INPUT_DIR):
+        if fname.endswith(".mp3"):
+            src = os.path.join(INPUT_DIR, fname)
+            dest = os.path.join(QUEUE_DIR, fname)
+            if not os.path.exists(dest):
+                try:
+                    shutil.copy2(src, dest)
+                    set_file_status(fname, "queued")
+                    logger.info(f"Initial scan queued {fname}")
+                except Exception as e:
+                    logger.error(f"Failed to queue {fname} on initial scan: {e}")
+
 def run_watcher():
     os.makedirs(QUEUE_DIR, exist_ok=True)
+    initial_scan_and_queue()  # <--- Add this line
     event_handler = MP3Handler()
     observer = Observer()
     observer.schedule(event_handler, INPUT_DIR, recursive=True)

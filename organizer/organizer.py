@@ -36,7 +36,7 @@ logger.info(f"Logging initialized at {LOG_LEVEL} level")
 
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/output")
 ORG_DIR = os.environ.get("ORG_DIR", "/organized")
-META_DIR = os.environ.get("META_DIR", "/metadata/json")
+META_DIR = os.environ.get("META_DIR", "/metadata")
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
 
 def get_metadata_from_json(file_path):

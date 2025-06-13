@@ -2,40 +2,46 @@
 import { DataProvider, RaRecord, Identifier, UpdateParams, UpdateResult } from 'react-admin';
 import axios, { AxiosResponse } from 'axios';
 
-const API_URL = process.env.REACT_APP_STATUS_API_URL || 'http://localhost:3000';
+const API_URL = process.env.REACT_APP_STATUS_API_URL || 'https://vectorhost.net:5001';
+
+const resourceMap: Record<string, string> = {
+  files: 'status',
+  'error-files': 'error-files',
+};
 
 const dataProvider: DataProvider = {
   getList: async <RecordType extends RaRecord<Identifier> = any>(
     resource: string,
     params: any
   ): Promise<{ data: RecordType[]; total: number }> => {
-    const response = await axios.get(`${API_URL}/${resource}`, {
-      params: {
-        _page: params.pagination?.page,
-        _limit: params.pagination?.perPage,
-        _sort: params.sort?.field,
-        _order: params.sort?.order,
-        ...(params.filter || {}),
-      },
-    });
+    const apiResource = resourceMap[resource] || resource;
 
-    // Explicitly cast as RecordType[] for TypeScript
+    // Backend does not support pagination, sorting, filtering yet
+    const response = await axios.get(`${API_URL}/${apiResource}`);
+
+    // Map filename to id for react-admin compatibility
+    const data = response.data[apiResource === 'status' ? 'files' : apiResource] || response.data;
+    const items: any[] = Array.isArray(data) ? data : Object.values(data);
+    const mapped = items.map(item => ({
+      id: item.filename || item.id || item,
+      ...item,
+    }));
+
     return {
-      data: response.data as RecordType[],
-      total:
-        typeof response.headers['x-total-count'] !== 'undefined'
-          ? parseInt(response.headers['x-total-count'], 10)
-          : (response.data.length || 0),
+      data: mapped as RecordType[],
+      total: mapped.length,
     };
   },
 
   getOne: async (resource, params) => {
-    const { data } = await axios.get(`${API_URL}/${resource}/${params.id}`);
+    const apiResource = resourceMap[resource] || resource;
+    const { data } = await axios.get(`${API_URL}/${apiResource}/${params.id}`);
     return { data };
   },
 
   getMany: async (resource, params) => {
-    const response = await axios.get(`${API_URL}/${resource}`, {
+    const apiResource = resourceMap[resource] || resource;
+    const response = await axios.get(`${API_URL}/${apiResource}`, {
       params: { id: params.ids },
     });
     return { data: response.data };
@@ -45,22 +51,18 @@ const dataProvider: DataProvider = {
     resource: string,
     params: any
   ): Promise<{ data: RecordType[]; total: number }> => {
-    // Many reference is usually a filter on a foreign key, often params.target/params.id.
+    const apiResource = resourceMap[resource] || resource;
     const { target, id } = params;
-    const response = await axios.get(`${API_URL}/${resource}`, {
+    const response = await axios.get(`${API_URL}/${apiResource}`, {
       params: {
-        ...params.pagination,
-        ...params.sort,
-        ...params.filter,
-        [target]: id, // e.g. post_id: 123
+        [target]: id,
       },
     });
+    const data = response.data;
+    const items: any[] = Array.isArray(data) ? data : Object.values(data);
     return {
-      data: response.data as RecordType[],
-      total:
-        typeof response.headers['x-total-count'] !== 'undefined'
-          ? parseInt(response.headers['x-total-count'], 10)
-          : (response.data.length || 0),
+      data: items as RecordType[],
+      total: items.length,
     };
   },
 
@@ -68,42 +70,39 @@ const dataProvider: DataProvider = {
     resource: string,
     params: UpdateParams<RecordType>
   ): Promise<UpdateResult<RecordType>> => {
-    // Option A: If the server returns the full record:
+    const apiResource = resourceMap[resource] || resource;
     const response: AxiosResponse<RecordType> = await axios.patch(
-      `${API_URL}/${resource}/${params.id}`,
+      `${API_URL}/${apiResource}/${params.id}`,
       params.data
     );
     return { data: response.data };
-
-    // Option B: If the server responds with only { id }, uncomment below:
-    /*
-    await axios.patch(`${API_URL}/${resource}/${params.id}`, params.data);
-    const { data: fresh } = await axios.get<RecordType>(`${API_URL}/${resource}/${params.id}`);
-    return { data: fresh };
-    */
   },
 
   updateMany: async (resource, params) => {
+    const apiResource = resourceMap[resource] || resource;
     const updated = await Promise.all(
       params.ids.map(id =>
-        axios.patch(`${API_URL}/${resource}/${id}`, params.data).then(res => res.data.id)
+        axios.patch(`${API_URL}/${apiResource}/${id}`, params.data).then(res => res.data.id)
       )
     );
     return { data: updated };
   },
 
   create: async (resource, params) => {
-    const { data } = await axios.post(`${API_URL}/${resource}`, params.data);
+    const apiResource = resourceMap[resource] || resource;
+    const { data } = await axios.post(`${API_URL}/${apiResource}`, params.data);
     return { data };
   },
 
   delete: async (resource, params) => {
-    const { data } = await axios.delete(`${API_URL}/${resource}/${params.id}`);
+    const apiResource = resourceMap[resource] || resource;
+    const { data } = await axios.delete(`${API_URL}/${apiResource}/${params.id}`);
     return { data };
   },
 
   deleteMany: async (resource, params) => {
-    await Promise.all(params.ids.map(id => axios.delete(`${API_URL}/${resource}/${id}`)));
+    const apiResource = resourceMap[resource] || resource;
+    await Promise.all(params.ids.map(id => axios.delete(`${API_URL}/${apiResource}/${id}`)));
     return { data: params.ids };
   },
 };

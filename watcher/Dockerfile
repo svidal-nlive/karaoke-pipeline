@@ -4,10 +4,10 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Install pip and build dependencies
-RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+# Install build dependencies: gcc and git for pip git installs
+RUN apt-get update && apt-get install -y gcc git && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install in a virtualenv for smaller final image
+# Copy requirements and install in virtualenv
 COPY requirements.txt ./
 RUN python -m venv /venv \
     && /venv/bin/pip install --upgrade pip setuptools wheel \
@@ -30,3 +30,4 @@ ENV PATH="/venv/bin:$PATH"
 EXPOSE 5000
 
 ENTRYPOINT ["python", "watcher.py"]
+

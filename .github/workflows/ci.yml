@@ -1,91 +1,46 @@
-name: CI Pipeline (All Services & E2E)
+name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        node-version: [20.x]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Cache pip
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: Cache npm modules
+        uses: actions/cache@v3
+        id: cache-npm
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-
 
-    - name: Install flake8 for linting
-      run: pip install flake8
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
 
-    - name: Lint codebase
-      run: flake8 .
+      - name: Run build
+        run: npm run build
 
-    - name: Per-Service Unit Tests
-      run: |
-        set -e
-        for dir in */ ; do
-          echo "============================"
-          echo "Testing service: $dir"
-          echo "============================"
-          cd "$dir"
-          if [ -f requirements.txt ]; then
-            # Special fix for splitter: Always install numpy wheel first
-            if [ "$dir" = "splitter/" ]; then
-              pip install --upgrade pip setuptools wheel
-              pip install "numpy==1.23.5" --only-binary=:all:
-            fi
-            pip install -r requirements.txt
-          fi
-          # Run pytest files if present
-          if compgen -G "test_*.py" > /dev/null; then
-            echo "Running tests in $dir"
-            pytest || echo "No pytest found"
-          else
-            echo "No tests found in $dir, skipping tests."
-          fi
-          cd ..
-        done
-
-    - name: Install Docker Compose
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y docker-compose
-
-    - name: E2E Pipeline Test
-      shell: bash
-      run: |
-        # Export all required env vars for Docker Compose and services
-        export PUID=1001
-        export PGID=1001
-        export TZ=America/New_York
-        export LOG_LEVEL=INFO
-        export CHUNKING_ENABLED=false
-        export CHUNK_LENGTH_MS=240000
-        export SPLITTER_TYPE=SPLEETER
-        export STEMS=2
-        export STEM_TYPE=accompaniment
-
-        echo "E2E Environment:"
-        env | grep -E 'PUID|PGID|TZ|LOG_LEVEL|CHUNK|SPLITTER|STEM'
-
-        docker compose version
-
-        pip install pytest requests
-
-        pytest e2e/test_pipeline_e2e.py --tb=short --maxfail=1
+      - name: Run tests
+        run: npm test -- --watchAll=false

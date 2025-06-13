@@ -4,7 +4,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# System dependencies for audio
+# System dependencies for audio + git for pip git installs
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ffmpeg \
@@ -41,4 +41,5 @@ ENV PATH="/venv/bin:$PATH"
 EXPOSE 5000
 
 ENTRYPOINT ["python", "splitter.py"]
+
 

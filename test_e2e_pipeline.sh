@@ -5,7 +5,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 E2E_COMPOSE="e2e/docker-compose.e2e.yml"
 MAIN_COMPOSE="docker-compose.yml"
-METADATA_JSON_DIR="${PROJECT_ROOT}/metadata/json"
+METADATA_JSON_DIR="${PROJECT_ROOT}/metadata"
 
 # ---- 1. Clean old containers, networks, and volumes ----
 echo "[1/6] Shutting down and cleaning Docker volumes/containers..."

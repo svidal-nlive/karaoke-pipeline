@@ -5,6 +5,7 @@ import requests
 import shutil
 from flask import Flask, jsonify, request, Response, abort
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 from karaoke_shared.pipeline_utils import (
     redis_client,
     get_files_by_status,
@@ -12,6 +13,7 @@ from karaoke_shared.pipeline_utils import (
     notify_all,
 )
 
+# Logging configuration
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -28,6 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
 
+# Pipeline stage definitions and directories
 PIPELINE_STAGES = [
     ("input", "INPUT_DIR", ".mp3"),
     ("queued", "QUEUE_DIR", ".ready"),
@@ -42,7 +45,7 @@ DIRS = {
     for (stage, env_key, default_path) in [
         ("input", "INPUT_DIR", "/input"),
         ("queued", "QUEUE_DIR", "/queue"),
-        ("metadata_extracted", "META_DIR", "/metadata/json"),
+        ("metadata_extracted", "META_DIR", "/metadata"),
         ("split", "STEMS_DIR", "/stems"),
         ("packaged", "OUTPUT_DIR", "/output"),
         ("organized", "ORG_DIR", "/organized"),
@@ -50,39 +53,29 @@ DIRS = {
     ]
 }
 
+# Test asset configuration
 TEST_ASSET_URL = (
     "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
 )
 TEST_ASSET_PATH = "/test-assets/01-Chosen.mp3"
+start_time = time.time()
 
-def list_files(directory, suffix):
-    if not os.path.exists(directory):
-        return []
-    if suffix:
-        return [f for f in os.listdir(directory) if f.endswith(suffix)]
-    else:
-        return os.listdir(directory)
-
-def get_file_status(filename):
-    stages = {}
-    namebase = os.path.splitext(filename)[0]
-    for stage, dirkey, suffix in PIPELINE_STAGES:
-        dirpath = DIRS[stage]
-        for f in list_files(dirpath, suffix):
-            if namebase in f:
-                stages[stage] = os.path.join(dirpath, f)
-    redis_data = redis_client.hgetall(f"file:{filename}")
-    status = redis_data.get("status", "unknown")
-    last_error = redis_data.get("error", "")
-    return {
-        "filename": filename,
-        "stages": stages,
-        "status": status,
-        "last_error": last_error,
-    }
-
+# Flask app initialization
 app = Flask(__name__)
 CORS(app)
+
+# File upload endpoint
+@app.route('/input', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        abort(400, 'No file part')
+    file = request.files['file']
+    if file.filename == '':
+        abort(400, 'No selected file')
+    filename = secure_filename(file.filename)
+    dest = os.path.join(DIRS['input'], filename)
+    file.save(dest)
+    return jsonify({'status': 'success', 'filename': filename}), 201
 
 @app.route("/health")
 def health():
@@ -92,8 +85,9 @@ def health():
 def status():
     all_bases = set()
     for stage, dirkey, suf in PIPELINE_STAGES:
-        for f in list_files(DIRS[stage], suf):
-            all_bases.add(os.path.splitext(f)[0])
+        for f in os.listdir(DIRS[stage]) if os.path.exists(DIRS[stage]) else []:
+            if f.endswith(suf):
+                all_bases.add(os.path.splitext(f)[0])
     file_statuses = [get_file_status(f"{b}.mp3") for b in all_bases]
     return jsonify({"files": file_statuses})
 
@@ -152,8 +146,6 @@ def error_details(filename):
         return jsonify({"filename": filename, "error": "No error found."}), 404
     return jsonify({"filename": filename, "error": error})
 
-start_time = time.time()
-
 @app.route("/metrics")
 def metrics():
     stages = [
@@ -184,7 +176,7 @@ def reset_pipeline():
         )
     full = request.args.get("full") == "true"
     cleared = []
-    folders = [DIRS[k] for k in DIRS] + (["/logs"] if full else [])
+    folders = [DIRS[k] for k in DIRS] + (['/logs'] if full else [])
     for folder in folders:
         if os.path.exists(folder):
             for entry in os.listdir(folder):
@@ -201,16 +193,16 @@ def reset_pipeline():
         redis_client.delete(key)
     return jsonify({"status": "reset complete", "cleared": cleared}), 200
 
+# Test asset endpoints
+
 def fetch_test_asset():
-    url = TEST_ASSET_URL
-    path = TEST_ASSET_PATH
     try:
-        r = requests.get(url, timeout=30)
+        r = requests.get(TEST_ASSET_URL, timeout=30)
         r.raise_for_status()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as f:
+        os.makedirs(os.path.dirname(TEST_ASSET_PATH), exist_ok=True)
+        with open(TEST_ASSET_PATH, "wb") as f:
             f.write(r.content)
-        logger.info(f"Test asset fetched and saved to {path}")
+        logger.info(f"Test asset fetched and saved to {TEST_ASSET_PATH}")
         return True
     except Exception as e:
         logger.error(f"Failed to fetch test asset: {e}")
