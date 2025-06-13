@@ -1,94 +1,115 @@
-import * as React from "react";
-import { Card, CardContent, Typography, Box, Button, LinearProgress, Stack } from "@mui/material";
+// src/Dashboard.tsx
+import * as React from 'react';
+import {
+  Admin,
+  Resource,
+  List,
+  Datagrid,
+  TextField,
+  FunctionField,
+  useNotify,
+  useRefresh,
+} from 'react-admin';
+import simpleRestProvider from 'ra-data-simple-rest';
+import { Card, CardContent, Typography, Box, Button, LinearProgress, Stack } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { useNotify, useRefresh, useDataProvider, List, Datagrid, TextField, FunctionField, RaRecord } from "react-admin";
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 
-export const PipelineDashboard = () => {
-  // (For future: get stats from API)
-  return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Karaoke Pipeline Dashboard
-      </Typography>
-      <StatsBar />
-      <Box sx={{ mt: 4 }}>
-        <FileUploader />
-      </Box>
+// ----------------------------------------------------------------
+// Dashboard (main landing page)
+// ----------------------------------------------------------------
+export const PipelineDashboard = () => (
+  <Box sx={{ p: 2 }}>
+    <Typography variant="h4" gutterBottom>
+      Karaoke Pipeline Dashboard
+    </Typography>
+    <StatsBar />
+    <Box sx={{ mt: 4 }}>
+      <FileUploader />
     </Box>
-  );
-};
+  </Box>
+);
 
+// ----------------------------------------------------------------
+// Stats Bar: fetches /pipeline-health
+// ----------------------------------------------------------------
 function StatsBar() {
-  // Replace with API stats if you like
-  // Example: Fetch /stats from backend
-  const stats = { inProgress: 0, completed: 0, errors: 0 };
+  const [stats, setStats] = React.useState<{ queued: number; organized: number; error: number } | null>(null);
+
+  React.useEffect(() => {
+    fetch(`${process.env.REACT_APP_STATUS_API_URL}/pipeline-health`)
+      .then((res) => res.json())
+      .then((json) =>
+        setStats({
+          queued: json.queued ?? 0,
+          organized: json.organized ?? 0,
+          error: json.error ?? 0,
+        })
+      )
+      .catch(() => setStats({ queued: 0, organized: 0, error: 0 }));
+  }, []);
+
+  if (!stats) return <LinearProgress sx={{ mb: 2 }} />;
+
   return (
     <Stack direction="row" spacing={4}>
       <Card>
         <CardContent>
           <Typography color="text.secondary">In Progress</Typography>
-          <Typography variant="h5">{stats.inProgress}</Typography>
+          <Typography variant="h5">{stats.queued}</Typography>
         </CardContent>
       </Card>
       <Card>
         <CardContent>
           <Typography color="text.secondary">Completed</Typography>
-          <Typography variant="h5">{stats.completed}</Typography>
+          <Typography variant="h5">{stats.organized}</Typography>
         </CardContent>
       </Card>
       <Card>
         <CardContent>
           <Typography color="text.secondary">Errors</Typography>
-          <Typography variant="h5">{stats.errors}</Typography>
+          <Typography variant="h5">{stats.error}</Typography>
         </CardContent>
       </Card>
     </Stack>
   );
 }
 
-// ---------- File Upload Component ----------
-
+// ----------------------------------------------------------------
+// File Upload Component
+// ----------------------------------------------------------------
 export function FileUploader() {
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
-  const fileInput = React.useRef<HTMLInputElement>(null);
   const notify = useNotify();
   const refresh = useRefresh();
-  const uploadUrl = process.env.REACT_APP_STATUS_API_URL || "http://vectorhost.net:5001";
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
     const file = e.target.files[0];
     setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const req = new XMLHttpRequest();
-      req.open("POST", `${uploadUrl}/input`);
-      req.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          setProgress(Math.round((event.loaded / event.total) * 100));
-        }
-      };
-      req.onload = () => {
-        setUploading(false);
-        if (req.status >= 200 && req.status < 300) {
-          notify("Upload successful!", { type: "info" });
-          refresh();
-        } else {
-          notify(`Upload failed with status ${req.status}`, { type: "error" });
-        }
-      };
-      req.onerror = () => {
-        setUploading(false);
-        notify("Upload failed: Network error", { type: "error" });
-      };
-      req.send(formData);
-    } catch (err: any) {
+    const req = new XMLHttpRequest();
+    req.open('POST', `${process.env.REACT_APP_STATUS_API_URL}/input`);
+    req.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
+    };
+    req.onload = () => {
       setUploading(false);
-      notify(`Upload failed: ${err.message}`, { type: "error" });
-    }
+      if (req.status < 400) {
+        notify('Upload successful!', { type: 'info' });
+        refresh();
+      } else {
+        notify('Upload failed', { type: 'error' });
+      }
+    };
+    req.onerror = () => {
+      setUploading(false);
+      notify('Upload failed', { type: 'error' });
+    };
+    req.send(formData);
   };
 
   return (
@@ -101,13 +122,7 @@ export function FileUploader() {
           disabled={uploading}
         >
           Upload File
-          <input
-            type="file"
-            hidden
-            ref={fileInput}
-            onChange={handleFileChange}
-            disabled={uploading}
-          />
+          <input type="file" hidden onChange={handleFileChange} disabled={uploading} />
         </Button>
         {uploading && (
           <Box sx={{ width: '100%', mt: 2 }}>
@@ -120,61 +135,79 @@ export function FileUploader() {
   );
 }
 
-// ---------- File List/Datagrid ----------
-
-export const FileList = () => (
-  <List resource="files" perPage={50} title="Pipeline Files">
-    <Datagrid>
+// ----------------------------------------------------------------
+// File List (All Files)
+// ----------------------------------------------------------------
+export const FileList = (props: any) => (
+  <List {...props} pagination={false} resource="status" title="All Files">
+    <Datagrid rowClick="edit">
       <TextField source="filename" />
       <TextField source="status" />
       <FunctionField
         label="Stages"
-        render={(record: any) =>
-          Object.keys(record.stages || {}).join(", ")
-        }
+        render={(record: any) => Object.keys(record.stages || {}).join(', ')}
       />
       <TextField source="last_error" />
-      <RetryButton />
     </Datagrid>
   </List>
 );
 
-export const ErrorList = () => (
-  <List resource="error-files" perPage={50} title="Error Files">
-    <Datagrid>
-      <TextField source="filename" />
-      <TextField source="status" />
-      <TextField source="last_error" />
-      <RetryButton />
-    </Datagrid>
-  </List>
-);
-
-const RetryButton = () => {
+// ----------------------------------------------------------------
+// Error Files List
+// ----------------------------------------------------------------
+export const ErrorList = (props: any) => {
   const notify = useNotify();
   const refresh = useRefresh();
-  const dataProvider = useDataProvider();
+
   return (
-    <FunctionField
-      label="Retry"
-      render={(record: RaRecord) =>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={async () => {
-            try {
-              await dataProvider.create('retry', { data: { filename: record.filename } });
-              notify('Retry triggered for ' + record.filename, { type: 'info' });
-              refresh();
-            } catch (err: any) {
-              notify('Retry failed: ' + (err && err.message), { type: 'error' });
-            }
-          }}
-          disabled={record.status !== "error"}
-        >
-          Retry
-        </Button>
-      }
-    />
+    <List {...props} pagination={false} resource="error-files" title="Error Files">
+      <Datagrid>
+        <TextField source="filename" />
+        <TextField source="status" />
+        <TextField source="last_error" />
+        <FunctionField
+          label="Retry"
+          render={(record: any) => (
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={record.status !== 'error'}
+              onClick={async () => {
+                try {
+                  await fetch(
+                    `${process.env.REACT_APP_STATUS_API_URL}/retry`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ filename: record.filename }),
+                    }
+                  );
+                  notify('Retry triggered for ' + record.filename, { type: 'info' });
+                  refresh();
+                } catch {
+                  notify('Retry failed', { type: 'error' });
+                }
+              }}
+            >
+              Retry
+            </Button>
+          )}
+        />
+      </Datagrid>
+    </List>
   );
 };
+
+// ----------------------------------------------------------------
+// App Entry Point
+// ----------------------------------------------------------------
+const dataProvider = simpleRestProvider(process.env.REACT_APP_STATUS_API_URL!);
+
+const App = () => (
+  <Admin dataProvider={dataProvider} dashboard={PipelineDashboard} title="Karaoke Pipeline Dashboard">
+    <Resource name="status" list={FileList} icon={UploadFileIcon} options={{ label: 'All Files' }} />
+    <Resource name="error-files" list={ErrorList} options={{ label: 'Error Files' }} />
+  </Admin>
+);
+
+export default App;

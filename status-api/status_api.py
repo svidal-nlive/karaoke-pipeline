@@ -1,14 +1,16 @@
+# status_api.py
 import os
 import logging
 import time
 import requests
 import shutil
-from flask import Flask, jsonify, request, Response, abort
+from flask import Flask, jsonify, request, Response, abort, make_response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from karaoke_shared.pipeline_utils import (
     redis_client,
     get_files_by_status,
+    get_file_status,
     set_file_status,
     notify_all,
 )
@@ -30,41 +32,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
 
-# Pipeline stage definitions and directories
-PIPELINE_STAGES = [
-    ("input", "INPUT_DIR", ".mp3"),
-    ("queued", "QUEUE_DIR", ".ready"),
-    ("metadata_extracted", "META_DIR", ".json"),
-    ("split", "STEMS_DIR", ""),
-    ("packaged", "OUTPUT_DIR", ".mp3"),
-    ("organized", "ORG_DIR", ".mp3"),
-    ("error", "QUEUE_DIR", ".error"),
-]
+# Directories from env
 DIRS = {
-    stage: os.environ.get(env_key, default_path)
-    for (stage, env_key, default_path) in [
-        ("input", "INPUT_DIR", "/input"),
-        ("queued", "QUEUE_DIR", "/queue"),
-        ("metadata_extracted", "META_DIR", "/metadata"),
-        ("split", "STEMS_DIR", "/stems"),
-        ("packaged", "OUTPUT_DIR", "/output"),
-        ("organized", "ORG_DIR", "/organized"),
-        ("error", "QUEUE_DIR", "/queue"),
-    ]
+    "input": os.environ.get("INPUT_DIR", "/input"),
+    "queue": os.environ.get("QUEUE_DIR", "/queue"),
+    "metadata_extracted": os.environ.get("META_DIR", "/metadata"),
+    "split": os.environ.get("STEMS_DIR", "/stems"),
+    "packaged": os.environ.get("OUTPUT_DIR", "/output"),
+    "organized": os.environ.get("ORG_DIR", "/organized"),
+    "error":  os.environ.get("QUEUE_DIR", "/queue"),
 }
 
-# Test asset configuration
-TEST_ASSET_URL = (
-    "https://rorecclesia.com/demo/wp-content/uploads/2024/12/01-Chosen.mp3"
-)
-TEST_ASSET_PATH = "/test-assets/01-Chosen.mp3"
-start_time = time.time()
-
-# Flask app initialization
+# Flask + CORS
 app = Flask(__name__)
-CORS(app)
+# Replace with your actual dashboard URL
+DASHBOARD_ORIGIN = os.environ.get("DASHBOARD_ORIGIN", "https://kdash.vectorhost.net")
+CORS(app, origins=[DASHBOARD_ORIGIN], expose_headers=["Content-Range"])
 
-# File upload endpoint
+# --- Upload endpoint remains the same ---
 @app.route('/input', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -77,20 +62,39 @@ def upload_file():
     file.save(dest)
     return jsonify({'status': 'success', 'filename': filename}), 201
 
+# --- Health ---
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
+# --- LIST ALL FILES ---
 @app.route("/status")
-def status():
+def list_status():
+    # gather all base names
     all_bases = set()
-    for stage, dirkey, suf in PIPELINE_STAGES:
-        for f in os.listdir(DIRS[stage]) if os.path.exists(DIRS[stage]) else []:
-            if f.endswith(suf):
-                all_bases.add(os.path.splitext(f)[0])
-    file_statuses = [get_file_status(f"{b}.mp3") for b in all_bases]
-    return jsonify({"files": file_statuses})
+    for stage, path in DIRS.items():
+        suf = {
+            "input": ".mp3",
+            "queue": ".ready",
+            "metadata_extracted": ".json",
+            "packaged": ".mp3",
+            "organized": ".mp3",
+            "split": "",
+            "error": ".error",
+        }[stage]
+        if os.path.exists(path):
+            for f in os.listdir(path):
+                if f.endswith(suf):
+                    all_bases.add(os.path.splitext(f)[0])
+    statuses = [ get_file_status(f"{b}.mp3") for b in sorted(all_bases) ]
 
+    # Build response as a plain array + Content-Range header
+    total = len(statuses)
+    resp = make_response(jsonify(statuses), 200)
+    resp.headers["Content-Range"] = f"items 0-{total-1}/{total}"
+    return resp
+
+# --- GET ONE FILE STATUS ---
 @app.route("/status/<filename>")
 def status_single(filename):
     result = get_file_status(filename)
@@ -98,53 +102,47 @@ def status_single(filename):
         abort(404, f"File {filename} not found in pipeline")
     return jsonify(result)
 
+# --- LIST ERROR FILES ---
 @app.route("/error-files")
-def error_files():
-    error_files = get_files_by_status("error")
-    details = [get_file_status(f) for f in error_files]
-    return jsonify({"error_files": details})
+def list_error_files():
+    errors = get_files_by_status("error")
+    details = [ get_file_status(f) for f in errors ]
+    total = len(details)
+    resp = make_response(jsonify(details), 200)
+    resp.headers["Content-Range"] = f"items 0-{total-1}/{total}"
+    return resp
 
+# --- RETRY ---
 @app.route("/retry", methods=["POST"])
 def retry_file():
-    data = request.json
+    data = request.json or {}
     filename = data.get("filename")
     if not filename:
         return jsonify({"error": "No filename provided"}), 400
-    filekey = f"file:{filename}"
-    if not redis_client.exists(filekey):
+    key = f"file:{filename}"
+    if not redis_client.exists(key):
         return jsonify({"error": "File not found"}), 404
+
     set_file_status(filename, "queued")
     for stage in ["metadata", "splitter", "packager", "organizer"]:
         redis_client.delete(f"{stage}_retries:{filename}")
-    redis_client.hdel(filekey, "error")
-    notify_all(
-        "File Retry Triggered",
-        f"🔄 File {filename} reset to queued and retries cleared.",
-    )
-    return jsonify(
-        {"message": f"File {filename} reset to queued and retries cleared."}
-    )
+    redis_client.hdel(key, "error")
+    notify_all("File Retry Triggered", f"🔄 File {filename} reset to queued.")
+    return jsonify({"message": "ok"}), 200
 
+# --- PIPELINE HEALTH ---
 @app.route("/pipeline-health")
 def pipeline_health():
-    stages = [
-        "queued",
-        "metadata_extracted",
-        "split",
-        "packaged",
-        "organized",
-        "error",
-    ]
-    counts = {stage: len(get_files_by_status(stage)) for stage in stages}
-    return jsonify(counts)
+    stages = ["queue", "metadata_extracted", "split", "packaged", "organized", "error"]
+    return jsonify({ s: len(get_files_by_status(s)) for s in stages })
 
+# --- ERROR DETAILS ---
 @app.route("/error-details/<filename>")
 def error_details(filename):
-    filekey = f"file:{filename}"
-    error = redis_client.hget(filekey, "error")
-    if not error:
+    err = redis_client.hget(f"file:{filename}", "error")
+    if not err:
         return jsonify({"filename": filename, "error": "No error found."}), 404
-    return jsonify({"filename": filename, "error": error})
+    return jsonify({"filename": filename, "error": err})
 
 @app.route("/metrics")
 def metrics():

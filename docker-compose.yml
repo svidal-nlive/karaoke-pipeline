@@ -112,6 +112,10 @@ services:
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
+      STEMS_DIR: /stems
+      PACKAGED_DIR: /output
+#      MAX_RETRIES: ${MAX_RETRIES}
+#      RETRY_DELAY: ${RETRY_DELAY}
     volumes:
       - stems:/stems
       - metadata:/metadata
@@ -177,7 +181,7 @@ services:
     ports:
       - "3001:80"
     environment:
-      - REACT_APP_STATUS_API_URL=http://status-api:5001
+      - REACT_APP_STATUS_API_URL=https://kapi.vectorhost.net
     depends_on:
       - status-api
     networks: [backend]

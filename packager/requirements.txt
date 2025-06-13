@@ -5,6 +5,7 @@ mutagen==1.47.0
 requests==2.32.3
 redis==6.1.0
 soundfile
+Flask==2.2.5
 # Karaoke-shared for pipeline utils
 git+https://github.com/svidal-nlive/karaoke-shared.git@v1.0.0
 

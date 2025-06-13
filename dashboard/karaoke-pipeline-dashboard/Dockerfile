@@ -1,40 +1,36 @@
 # ---- Build stage ----
-FROM node:20-alpine AS build
-
+# Use Debian slim for faster, more reliable CRA builds
+# Requires BuildKit: export DOCKER_BUILDKIT=1
+FROM node:20-slim AS build
 WORKDIR /app
 
-# Copy package files first for caching
+# Install curl (needed only if you ever fetch anything)
+RUN apt-get update \
+ && apt-get install -y curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy only lockfiles first — leverages layer caching
 COPY package.json package-lock.json ./
 
-# Upgrade npm first for stable builds
-RUN npm install -g npm@11.4.2
+# Cache npm modules between builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
-# Retry npm ci up to 5 times on failure, with legacy-peer-deps flag
-RUN set -eux; \
-    n=0; \
-    until [ $n -ge 5 ]; do \
-      npm ci --legacy-peer-deps && break; \
-      n=$((n+1)); \
-      echo "npm ci failed, retrying ($n/5)..."; \
-      sleep 5; \
-    done
-
-# Copy the rest of your source code
+# Copy the rest of your source
 COPY . .
 
-# Run build
+# Do the heavy CRA build
 RUN npm run build
 
 # ---- Production Nginx stage ----
-FROM nginx:1.25-alpine
-
+FROM nginx:1.25-alpine AS production
 WORKDIR /usr/share/nginx/html
 
-COPY --from=build /app/build .
+# Copy only your static build artifacts
+COPY --from=build /app/build .  
 
+# Use your custom nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80 for HTTP
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]

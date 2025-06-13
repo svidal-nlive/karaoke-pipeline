@@ -3,8 +3,8 @@ import argparse
 import fnmatch
 
 # --- Configuration ---
-DEFAULT_EXCLUDE_FILE_TYPES = ['recursive_print.py', '*lock.json', '*.svg', '*.md']
-EXCLUDE_DIR = ['build', '.git', '*venv', '__pycache__', 'node_modules', 'e2e', 'models']
+DEFAULT_EXCLUDE_FILE_TYPES = ['*.yml', 'recursive_print.py', '*lock.json', '*.svg', '*.md', '*.txt', 'Dockerfile', '.*ignore', '*.sh', '.flake8']
+EXCLUDE_DIR = ['volume-init', 'tests', 'build', '.pytest_cache', '.git', '*venv', '__pycache__', 'node_modules', 'e2e', 'models', 'dashboard']
 # ---------------------
 
 BASE_DIR = None

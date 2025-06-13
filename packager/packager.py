@@ -3,6 +3,7 @@ import logging
 import time
 import subprocess
 import shutil
+from flask import Flask
 from karaoke_shared.pipeline_utils import (
     set_file_status,
     get_files_by_status,
@@ -12,6 +13,7 @@ from karaoke_shared.pipeline_utils import (
     redis_client,
     handle_auto_retry,
 )
+import threading
 import traceback
 import datetime
 
@@ -31,8 +33,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
 
-STEMS_DIR = os.environ.get("STEMS_DIR", "/stems")
-PACKAGED_DIR = os.environ.get("PACKAGED_DIR", "/packaged")
+STEMS_DIR     = os.environ.get("STEMS_DIR", "/stems")
+PACKAGED_DIR  = os.environ.get("OUTPUT_DIR", "/output")
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
 RETRY_DELAY = int(os.environ.get("RETRY_DELAY", 10))
 PACKAGE_FORMAT = os.environ.get("PACKAGE_FORMAT", "zip")  # or tar
@@ -69,6 +71,7 @@ def process_file(song_name):
                 return str(e)
 
 def main():
+    logger.info("Packager service started; watching files with status=split")
     while True:
         files = get_files_by_status("split")
         for file in files:
@@ -109,5 +112,13 @@ def main():
                 redis_client.incr(f"packager_retries:{file}")
         time.sleep(5)
 
-if __name__ == "__main__":
-    main()
+app = Flask(__name__)
+
+@app.route("/health")
+def health():
+    return "ok", 200
+
+if __name__=="__main__":
+    t = threading.Thread(target=main, daemon=True)
+    t.start()
+    app.run(host="0.0.0.0", port=5000)
