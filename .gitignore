@@ -3,36 +3,74 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.egg-info/
-*.log
 
-# Docker/Build
-docker-compose.override.yml
+# Pip
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# Pytest & Test
+.pytest_cache/
+.cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
 .env
 .env.*
 !.env.example
-*.bak
+
+# Docker
+**/tmp/
+**/logs/
+docker-data/
+pipeline-data/
 temp_chunks/
-models/
-.idea/
+*.pid
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React build artifacts
+dashboard/karaoke-pipeline-dashboard/build/
+dashboard/karaoke-pipeline-dashboard/.next/
+dashboard/karaoke-pipeline-dashboard/.turbo/
+dashboard/karaoke-pipeline-dashboard/coverage/
+dashboard/karaoke-pipeline-dashboard/.env
+
+# VSCode & IDEs
 .vscode/
+.idea/
+*.swp
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Test/Temp
-*.swp
-*~
+ehthumbs.db
+*.bak
 *.tmp
-*.orig
-*.old
 
-# Service-generated
-logs/
-output/
-input/
-queue/
-organized/
-metadata/
-stems/
+# E2E and Local Cache
+e2e/__pycache__/
+e2e/input/
+e2e/logs/
+e2e/metadata/
+e2e/organized/
+e2e/output/
+e2e/queue/
+e2e/stems/
+
+# Misc
+*.log
+*.orig
+*~
+

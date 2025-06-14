@@ -2,7 +2,7 @@ import * as React from "react";
 import { Admin, Resource, CustomRoutes } from "react-admin";
 import simpleRestProvider from "ra-data-simple-rest";
 import { FileList, ErrorList, PipelineDashboard } from "./Dashboard";
-import { Route } from "react-router";
+// import { Route } from "react-router";
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 // Fallback URL to vectorhost.net if env var missing

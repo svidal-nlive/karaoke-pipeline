@@ -1,22 +1,24 @@
+# organizer/organizer.py
+
 import os
 import shutil
-import threading
-import time
-import json
 import logging
-from flask import Flask
+import threading
+import traceback
+import datetime
+from flask import Flask, jsonify
 from karaoke_shared.pipeline_utils import (
+    redis_client,
+    STREAM_PACKAGED,
+    STREAM_ORGANIZED,
     set_file_status,
-    get_files_by_status,
     set_file_error,
     notify_all,
     clean_string,
-    redis_client,
     handle_auto_retry,
 )
-import traceback
-import datetime
 
+# ————— Logging setup —————
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -25,7 +27,6 @@ LEVELS = {
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
 }
-
 logging.basicConfig(
     level=LEVELS.get(LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -34,100 +35,84 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info(f"Logging initialized at {LOG_LEVEL} level")
 
-OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/output")
-ORG_DIR = os.environ.get("ORG_DIR", "/organized")
-META_DIR = os.environ.get("META_DIR", "/metadata")
-MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
-
-def get_metadata_from_json(file_path):
-    base = os.path.basename(file_path)
-    json_file = os.path.join(
-        META_DIR, base.replace("_karaoke.mp3", ".mp3.json")
+# ————— Stream / consumer config —————
+GROUP_NAME    = os.environ.get("ORGANIZER_GROUP",    "organizer-group")
+CONSUMER_NAME = os.environ.get("ORGANIZER_CONSUMER", "organizer-consumer")
+# Ensure the consumer group exists
+try:
+    redis_client.xgroup_create(
+        STREAM_PACKAGED, GROUP_NAME, id="0", mkstream=True
     )
-    if os.path.exists(json_file):
-        try:
-            with open(json_file, encoding="utf-8") as f:
-                meta = json.load(f)
-            artist = str(meta.get("TPE1", "") or "UnknownArtist")
-            album = str(meta.get("TALB", "") or "UnknownAlbum")
-            title = str(meta.get("TIT2", "") or os.path.splitext(base)[0])
-            return artist, album, title
-        except Exception:
-            pass
-    return "UnknownArtist", "UnknownAlbum", os.path.splitext(base)[0]
+    logger.info(f"Created consumer group {GROUP_NAME} on {STREAM_PACKAGED}")
+except Exception:
+    pass  # already exists
 
-def is_valid_karaoke_mp3(filename):
-    return filename.endswith("_karaoke.mp3")
+# ————— Env & retry settings —————
+OUTPUT_DIR  = os.environ.get("OUTPUT_DIR",  "/output")
+ORG_DIR     = os.environ.get("ORG_DIR",     "/organized")
+MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
+RETRY_DELAY = int(os.environ.get("RETRY_DELAY", 10))
 
-def organize_file(file_path, file):
-    try:
-        artist, album, title = get_metadata_from_json(file_path)
-        artist = clean_string(artist)
-        album = clean_string(album)
-        title = clean_string(title)
-        out_dir = os.path.join(ORG_DIR, artist, album)
-        os.makedirs(out_dir, exist_ok=True)
-        dest_file = os.path.join(out_dir, os.path.basename(file_path))
-        if not os.path.exists(dest_file):
-            shutil.copy2(file_path, dest_file)
-            notify_all(
-                "Karaoke Pipeline Success",
-                f"🎵 Karaoke organized: {os.path.basename(file_path)} → {artist}/{album}",
-            )
-    except Exception as e:
-        tb = traceback.format_exc()
-        timestamp = datetime.datetime.now().isoformat()
-        error_details = f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
-        set_file_error(file, error_details)
-        notify_all(
-            "Karaoke Pipeline Error",
-            f"Organizer error for {file} at {timestamp}:\n{e}",
-        )
-        redis_client.incr(f"organizer_retries:{file}")
+# ————— Organizing logic —————
+def organize_file(filename):
+    # move or copy the packaged file into organized directory
+    src = os.path.join(OUTPUT_DIR, clean_string(filename))
+    if not os.path.exists(src):
+        raise FileNotFoundError(f"Packaged file not found: {src}")
 
-def run_organizer():
     os.makedirs(ORG_DIR, exist_ok=True)
+    dest = os.path.join(ORG_DIR, clean_string(filename))
+    shutil.copy2(src, dest)
+    logger.info(f"Organized {filename} → {dest}")
+    return True
+
+# ————— Stream consumer loop —————
+def run_organizer():
+    logger.info("Organizer listening on Redis Stream...")
     while True:
-        files = get_files_by_status("packaged")
-        for file in files:
-            file_path = os.path.join(
-                OUTPUT_DIR, file.replace(".mp3", "_karaoke.mp3")
-            )
-            if not (
-                is_valid_karaoke_mp3(os.path.basename(file_path))
-                and os.path.exists(file_path)
-            ):
-                continue
+        entries = redis_client.xreadgroup(
+            GROUP_NAME, CONSUMER_NAME,
+            {STREAM_PACKAGED: ">"},
+            count=1, block=5000
+        )
+        if not entries:
+            continue
 
-            def org_func():
-                organize_file(file_path, file)
-                set_file_status(file, "organized")
+        for _stream, messages in entries:
+            for msg_id, data in messages:
+                filename = data.get("file")
 
-            try:
-                handle_auto_retry(
-                    "organizer", file, func=org_func, max_retries=MAX_RETRIES
-                )
-            except Exception as e:
-                tb = traceback.format_exc()
-                timestamp = datetime.datetime.now().isoformat()
-                error_details = (
-                    f"{timestamp}\nException: {e}\n\nTraceback:\n{tb}"
-                )
-                set_file_error(file, error_details)
-                notify_all(
-                    "Karaoke Pipeline Error",
-                    f"Organizer error for {file} at {timestamp}:\n{e}",
-                )
-                redis_client.incr(f"organizer_retries:{file}")
-        time.sleep(10)
+                def _do_organize():
+                    result = organize_file(filename)
+                    if result is True:
+                        set_file_status(filename, "organized")
+                        redis_client.xadd(STREAM_ORGANIZED, {"file": filename})
+                        logger.info(f"Published organized: {filename}")
+                        return True
+                    raise Exception(result)
 
+                try:
+                    handle_auto_retry(
+                        "organizer", filename,
+                        func=_do_organize,
+                        max_retries=MAX_RETRIES,
+                        retry_delay=RETRY_DELAY,
+                    )
+                except Exception:
+                    # final failure already logged / notified
+                    pass
+                finally:
+                    # ack the message to avoid reprocessing
+                    redis_client.xack(STREAM_PACKAGED, GROUP_NAME, msg_id)
+
+# ————— Flask health endpoint —————
 app = Flask(__name__)
 
 @app.route("/health")
 def health():
-    return "ok", 200
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
     t = threading.Thread(target=run_organizer, daemon=True)
     t.start()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("ORGANIZER_PORT", 5000)))
