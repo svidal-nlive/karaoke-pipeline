@@ -5,7 +5,6 @@ Werkzeug==2.2.3
 redis==6.1.0
 requests==2.32.3
 flask_cors
-git+https://github.com/svidal-nlive/karaoke-shared.git@v1.0.0
 
 # Test dependencies
 pytest

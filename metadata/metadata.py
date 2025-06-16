@@ -6,10 +6,10 @@ import threading
 import traceback
 from flask import Flask, jsonify
 from mutagen.mp3 import MP3
-from karaoke_shared.pipeline_utils import (
+from pipeline_utils.pipeline_utils import (
     redis_client,
     STREAM_QUEUED,
-    STREAM_METADATA_EXTRACTED,
+    STREAM_METADATA_DONE,
     set_file_status,
     set_file_error,
     notify_all,

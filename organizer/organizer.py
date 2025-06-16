@@ -7,7 +7,7 @@ import threading
 import traceback
 import datetime
 from flask import Flask, jsonify
-from karaoke_shared.pipeline_utils import (
+from pipeline_utils.pipeline_utils import (
     redis_client,
     STREAM_PACKAGED,
     STREAM_ORGANIZED,

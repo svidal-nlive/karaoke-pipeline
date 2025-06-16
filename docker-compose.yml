@@ -1,8 +1,6 @@
 # Root-level docker-compose.yml for Karaoke Pipeline
 # Default: named volumes for pipeline-data
 
-# version: "3.9"
----
 services:
   redis:
     image: redis:alpine
@@ -32,7 +30,8 @@ services:
 
   watcher:
     build:
-      context: ./watcher
+      context: .
+      dockerfile: watcher/Dockerfile
       args:
         PUID: ${PUID}
         PGID: ${PGID}
@@ -55,7 +54,8 @@ services:
 
   metadata:
     build:
-      context: ./metadata
+      context: .
+      dockerfile: metadata/Dockerfile
       args:
         PUID: ${PUID}
         PGID: ${PGID}
@@ -76,7 +76,8 @@ services:
 
   splitter:
     build:
-      context: ./splitter
+      context: .
+      dockerfile: splitter/Dockerfile
       args:
         PUID: ${PUID}
         PGID: ${PGID}
@@ -104,7 +105,8 @@ services:
 
   packager:
     build:
-      context: ./packager
+      context: .
+      dockerfile: packager/Dockerfile
       args:
         PUID: ${PUID}
         PGID: ${PGID}
@@ -114,8 +116,6 @@ services:
       PGID: ${PGID}
       STEMS_DIR: /stems
       PACKAGED_DIR: /output
-#      MAX_RETRIES: ${MAX_RETRIES}
-#      RETRY_DELAY: ${RETRY_DELAY}
     volumes:
       - stems:/stems
       - metadata:/metadata
@@ -129,8 +129,9 @@ services:
     networks: [backend]
 
   organizer:
-    build: 
-      context: ./organizer
+    build:
+      context: .
+      dockerfile: organizer/Dockerfile
       args:
         PUID: ${PUID}
         PGID: ${PGID}
@@ -152,7 +153,8 @@ services:
 
   status-api:
     build:
-      context: ./status-api
+      context: .
+      dockerfile: status-api/Dockerfile
       args:
         PUID: ${PUID}
         PGID: ${PGID}
@@ -177,13 +179,23 @@ services:
     networks: [backend]
 
   dashboard:
-    build: ./dashboard/karaoke-pipeline-dashboard
+    build:
+      context: ./dashboard/karaoke-dashboard
     ports:
-      - "3001:80"
+      - "3002:3000"  # Change host port as needed
+    # volumes:
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    networks: [backend]
     environment:
-      - REACT_APP_STATUS_API_URL=https://kapi.vectorhost.net
-    depends_on:
-      - status-api
+      - NODE_ENV=development
+
+  tunnel:
+    container_name: karaoke-pipeline-tunnel
+    image: cloudflare/cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
     networks: [backend]
 
 volumes:

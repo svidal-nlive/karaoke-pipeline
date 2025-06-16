@@ -7,9 +7,9 @@ import threading
 import shutil
 import traceback
 from flask import Flask, jsonify
-from karaoke_shared.pipeline_utils import (
+from pipeline_utils.pipeline_utils import (
     redis_client,
-    STREAM_SPLIT,
+    STREAM_SPLIT_DONE,
     STREAM_PACKAGED,
     set_file_status,
     set_file_error,
@@ -41,9 +41,9 @@ CONSUMER_NAME = os.environ.get("PACKAGER_CONSUMER", "packager-consumer")
 # Ensure the consumer group exists
 try:
     redis_client.xgroup_create(
-        STREAM_SPLIT, GROUP_NAME, id="0", mkstream=True
+        STREAM_SPLIT_DONE, GROUP_NAME, id="0", mkstream=True
     )
-    logger.info(f"Created consumer group {GROUP_NAME} on {STREAM_SPLIT}")
+    logger.info(f"Created consumer group {GROUP_NAME} on {STREAM_SPLIT_DONE}")
 except Exception:
     pass  # group already exists
 
@@ -93,7 +93,7 @@ def run_packager():
     while True:
         entries = redis_client.xreadgroup(
             GROUP_NAME, CONSUMER_NAME,
-            {STREAM_SPLIT: ">"},
+            {STREAM_SPLIT_DONE: ">"},
             count=1, block=5000
         )
         if not entries:
@@ -126,7 +126,7 @@ def run_packager():
                     pass
                 finally:
                     # always ack to avoid replay
-                    redis_client.xack(STREAM_SPLIT, GROUP_NAME, msg_id)
+                    redis_client.xack(STREAM_SPLIT_DONE, GROUP_NAME, msg_id)
 
 # ————— Flask health endpoint —————
 app = Flask(__name__)

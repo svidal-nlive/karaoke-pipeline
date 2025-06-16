@@ -7,18 +7,17 @@ import shutil
 from flask import Flask, jsonify, request, Response, abort, make_response, stream_with_context
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from karaoke_shared.pipeline_utils import (
+from pipeline_utils.pipeline_utils import (
     redis_client,
     get_files_by_status,
     get_file_status,
     set_file_status,
     notify_all,
     STREAM_QUEUED,
-    STREAM_METADATA,
-    STREAM_SPLIT,
+    STREAM_METADATA_DONE,
+    STREAM_SPLIT_DONE,
     STREAM_PACKAGED,
     STREAM_ORGANIZED,
-    STREAM_ERROR,
 )
 
 # ————— Logging —————
@@ -115,12 +114,17 @@ def pipeline_health():
 # ————— SSE stream for real-time updates —————
 @app.route("/stream")
 def stream():
-    streams = [STREAM_QUEUED, STREAM_METADATA, STREAM_SPLIT, STREAM_PACKAGED, STREAM_ORGANIZED, STREAM_ERROR]
+    streams = [STREAM_QUEUED, STREAM_METADATA_DONE, STREAM_SPLIT_DONE, STREAM_PACKAGED, STREAM_ORGANIZED]
     last_ids = {s: "0-0" for s in streams}
 
     def event_gen():
         while True:
-            resp = redis_client.xread(streams=streams, block=5000, count=10, stream_ids=[last_ids[s] for s in streams])
+            streams_dict = {s: last_ids[s] for s in streams}
+            resp = redis_client.xread(
+                streams=streams_dict,
+                block=5000,
+                count=10
+            )
             if not resp:
                 continue
             for stream_name, messages in resp:

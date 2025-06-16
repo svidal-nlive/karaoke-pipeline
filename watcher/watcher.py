@@ -6,7 +6,7 @@ import threading
 from flask import Flask
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from karaoke_shared.pipeline_utils import (
+from pipeline_utils.pipeline_utils import (
     redis_client,
     STREAM_QUEUED,
     set_file_status,

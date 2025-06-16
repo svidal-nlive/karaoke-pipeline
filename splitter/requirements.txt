@@ -7,11 +7,12 @@ mutagen==1.47.0
 pydub==0.25.1
 requests==2.32.3
 redis==6.1.0
+Flask
+Werkzeug<3.0
 # Demucs & dependencies
 demucs==4.0.1
 torch>=1.13.1
 soundfile
-git+https://github.com/svidal-nlive/karaoke-shared.git@v1.0.0
 
 # Test dependencies
 pytest

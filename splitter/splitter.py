@@ -9,10 +9,10 @@ import traceback
 from flask import Flask, jsonify
 from pydub import AudioSegment
 from pydub.utils import make_chunks
-from karaoke_shared.pipeline_utils import (
+from pipeline_utils.pipeline_utils import (
     redis_client,
-    STREAM_METADATA_EXTRACTED,
-    STREAM_SPLIT,
+    STREAM_METADATA_DONE,
+    STREAM_SPLIT_DONE,
     set_file_status,
     set_file_error,
     notify_all,
@@ -44,9 +44,9 @@ CONSUMER_NAME = os.environ.get("SPLITTER_CONSUMER", "splitter-consumer")
 # Ensure the group exists
 try:
     redis_client.xgroup_create(
-        STREAM_METADATA_EXTRACTED, GROUP_NAME, id="0", mkstream=True
+        STREAM_METADATA_DONE, GROUP_NAME, id="0", mkstream=True
     )
-    logger.info(f"Created consumer group {GROUP_NAME} on {STREAM_METADATA_EXTRACTED}")
+    logger.info(f"Created consumer group {GROUP_NAME} on {STREAM_METADATA_DONE}")
 except Exception:
     pass  # group already exists
 
@@ -253,7 +253,7 @@ def run_splitter():
     while True:
         entries = redis_client.xreadgroup(
             GROUP_NAME, CONSUMER_NAME,
-            {STREAM_METADATA_EXTRACTED: ">"},
+            {STREAM_METADATA_DONE: ">"},
             count=1, block=5000
         )
         if not entries:
@@ -269,7 +269,7 @@ def run_splitter():
                     result = process_file(path, song)
                     if result is True:
                         set_file_status(filename, "split")
-                        redis_client.xadd(STREAM_SPLIT, {"file": filename})
+                        redis_client.xadd(STREAM_SPLIT_DONE, {"file": filename})
                         logger.info(f"Split succeeded for {filename}")
                         return True
                     raise Exception(result)
@@ -284,7 +284,7 @@ def run_splitter():
                     pass
                 finally:
                     redis_client.xack(
-                        STREAM_METADATA_EXTRACTED, GROUP_NAME, msg_id
+                        STREAM_METADATA_DONE, GROUP_NAME, msg_id
                     )
 
 # ————— Flask health endpoint —————
