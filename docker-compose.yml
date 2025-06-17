@@ -184,6 +184,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3002:3000"
+    environment:
+      - STATUS_API_URL=http://status-api:5001
     volumes:
       - ./dashboard/karaoke-dashboard:/app
       - /app/node_modules

@@ -29,7 +29,7 @@ logger.info(f"Logging initialized at {LOG_LEVEL}")
 
 # ————— Flask + CORS —————
 app = Flask(__name__)
-DASHBOARD_ORIGIN = os.environ.get("DASHBOARD_ORIGIN", "https://kdash.vectorhost.net")
+DASHBOARD_ORIGIN = os.environ.get("DASHBOARD_ORIGIN", "https://mydash.vectorhost.net")
 CORS(app, origins=[DASHBOARD_ORIGIN], expose_headers=["Content-Range"])
 
 # ————— Upload —————
