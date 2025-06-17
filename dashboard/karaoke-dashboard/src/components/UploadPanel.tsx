@@ -1,42 +1,62 @@
 "use client";
 import { useRef, useState } from "react";
+import { UploadCloud } from "lucide-react";
 
 export default function UploadPanel() {
-  const [status, setStatus] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!fileInput.current?.files?.[0]) return;
-    setStatus("Uploading...");
+    setUploading(true);
+    setMessage(null);
     const formData = new FormData();
     formData.append("file", fileInput.current.files[0]);
     try {
-      const resp = await fetch("/api/upload", { method: "POST", body: formData });
-      setStatus(resp.ok ? "Upload successful!" : "Upload failed.");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) setMessage("File uploaded!");
+      else setMessage("Upload failed.");
     } catch {
-      setStatus("Upload error.");
+      setMessage("Upload error.");
     }
+    setUploading(false);
   }
 
   return (
-    <section id="upload" className="bg-surface rounded-2xl p-8 shadow-lg border border-[#23272a]">
-      <h2 className="text-xl font-semibold mb-4 text-brand">Upload File</h2>
-      <form className="flex items-center gap-4" onSubmit={handleUpload}>
+    <>
+      <h2>Upload File</h2>
+      <form className="flex flex-col gap-3" onSubmit={handleUpload}>
         <input
-          ref={fileInput}
           type="file"
-          className="block text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand file:text-white hover:file:bg-yellow-500"
-          required
+          ref={fileInput}
+          className="file:bg-[var(--accent)] file:text-white file:rounded file:p-2 bg-[var(--input-bg)] text-[var(--fg)] p-2 rounded"
+          accept=".mp3,.wav"
         />
         <button
-          className="bg-brand text-white rounded px-6 py-2 font-bold shadow hover:bg-yellow-600 transition-all"
           type="submit"
+          style={{
+            background: "var(--accent)",
+            color: "#000",
+            border: "none",
+            padding: "0.6rem 1.2rem",
+            borderRadius: 5,
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+          disabled={uploading}
         >
-          Upload
+          <UploadCloud className="inline mr-1" size={18} />
+          {uploading ? "Uploading..." : "Upload"}
         </button>
+        {message && (
+          <div style={{ marginTop: 8, color: "var(--accent)" }}>{message}</div>
+        )}
       </form>
-      {status && <div className="mt-3 text-sm text-brand">{status}</div>}
-    </section>
+    </>
   );
 }

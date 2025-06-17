@@ -1,18 +1,22 @@
-# ---- Base image ----
 FROM node:20-alpine
 
-# Set working directory
-WORKDIR /app
+# 1. Ensure directory exists and is owned by root (will adjust later)
+RUN mkdir -p /home/node/app
 
-# Install dependencies
-COPY package.json package-lock.json* ./
+WORKDIR /home/node/app
+
+# 2. Copy package files as root, install dependencies
+COPY package*.json ./
 RUN npm install
 
-# Copy app source
-COPY . .
+# 3. Adjust ownership so the node user can write
+RUN chown -R node:node /home/node/app
 
-# Expose the dev server port
+# 4. Switch to unprivileged user
+USER node
+
+# 5. Copy the rest of your app as node
+COPY --chown=node:node . .
+
 EXPOSE 3000
-
-# Default command: Start Next.js in development mode, listen on all interfaces
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]

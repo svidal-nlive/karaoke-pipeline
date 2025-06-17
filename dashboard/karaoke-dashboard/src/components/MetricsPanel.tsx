@@ -1,8 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 
+type Metrics = {
+  filesProcessed: number;
+  totalJobs: number;
+  queuedFiles: number;
+  failedJobs: number;
+};
+
 export default function MetricsPanel() {
-  const [metrics, setMetrics] = useState<any>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   useEffect(() => {
     fetch("/api/metrics")
@@ -12,20 +19,26 @@ export default function MetricsPanel() {
   }, []);
 
   return (
-    <section id="metrics" className="bg-surface rounded-2xl p-8 shadow-lg border border-[#23272a]">
-      <h2 className="text-xl font-semibold mb-4 text-brand">Metrics</h2>
-      {!metrics ? (
-        <div>Loading metrics...</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Object.entries(metrics).map(([key, value]) => (
-            <div key={key} className="p-4 bg-header rounded-lg shadow text-center">
-              <div className="text-3xl font-bold text-brand">{value}</div>
-              <div className="text-sm uppercase text-gray-400 mt-1">{key}</div>
-            </div>
-          ))}
+    <>
+      <h2>Pipeline Metrics</h2>
+      <div className="metrics">
+        <div className="metric">
+          <h3>Files Processed</h3>
+          <p id="filesProcessed">{metrics ? metrics.filesProcessed : 0}</p>
         </div>
-      )}
-    </section>
+        <div className="metric">
+          <h3>Total Jobs</h3>
+          <p id="totalJobs">{metrics ? metrics.totalJobs : 0}</p>
+        </div>
+        <div className="metric">
+          <h3>Queued Files</h3>
+          <p id="queuedFiles">{metrics ? metrics.queuedFiles : 0}</p>
+        </div>
+        <div className="metric">
+          <h3>Failed</h3>
+          <p id="failedJobs">{metrics ? metrics.failedJobs : 0}</p>
+        </div>
+      </div>
+    </>
   );
 }
