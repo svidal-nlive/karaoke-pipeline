@@ -1,0 +1,25 @@
+directory: /music/organized
+library: /config/library.db
+import:
+  move: yes
+  copy: no
+  write: yes
+  resume: yes
+  autotag: yes
+  incremental: yes
+  quiet_fallback: skip
+  log: /config/import.log
+paths:
+  default: $albumartist/$album/$title
+  singleton: $artist/$title
+  comp: Compilations/$album/$title
+plugins: fetchart web
+fetchart:
+  auto: yes
+replaygain:
+  backend: gstreamer
+web:
+  host: 0.0.0.0
+  port: 8337
+  cors: "*"
+  

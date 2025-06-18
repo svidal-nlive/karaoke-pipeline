@@ -6,6 +6,7 @@ requests==2.32.3
 redis==6.1.0
 soundfile
 Flask==2.2.5
+pydub
 # Karaoke-shared for pipeline utils
 
 # Test dependencies

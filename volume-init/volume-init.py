@@ -10,7 +10,7 @@ DIRS = [
     "/logs",
     "/metadata",
     "/output",
-    "/organized",
+    "/music_organized",
     "/stems",
     "/cookies",
     "/chromium_config",

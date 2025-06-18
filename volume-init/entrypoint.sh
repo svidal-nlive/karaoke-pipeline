@@ -3,7 +3,7 @@ set -e
 
 echo "🔑 [volume-init] Setting ownership of shared volumes to ${PUID}:${PGID}"
 
-DIRS="/input /queue /logs /metadata /output /organized /stems /cookies /chromium_config /profile"
+DIRS="/input /queue /logs /metadata /output /music_organized /stems /cookies /chromium_config /profile"
 for path in $DIRS; do
   if [ -d "$path" ]; then
     echo " - Chowning $path"
