@@ -1,5 +1,5 @@
-setuptools>=68.0
-pip>=23.2
+# setuptools>=68.0
+# pip>=23.2
 numpy==1.23.5
 spleeter==2.4.2
 tensorflow==2.12.1
@@ -7,12 +7,12 @@ mutagen==1.47.0
 pydub==0.25.1
 requests==2.32.3
 redis==6.1.0
-Flask
+Flask #==2.2.5
 Werkzeug<3.0
 # Demucs & dependencies
 demucs==4.0.1
 torch>=1.13.1
-soundfile
+# soundfile
 
 # Test dependencies
 pytest
